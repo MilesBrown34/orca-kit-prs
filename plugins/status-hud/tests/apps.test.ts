@@ -130,8 +130,8 @@ test('chips: a session count above the machine count still shows every session',
 
 test('windowsProgram: the .exe a command runs (after wrappers only), named by its leading letters', async () => {
   expect(windowsProgram('/mnt/c/Program Files/Krita (x64)/bin/krita.exe --nosplash a.kra')).toBe('krita')
-  expect(windowsProgram('timeout 1800 /mnt/f/3D Objects/Tools/Blender/blender.exe -b x.blend')).toBe('blender')
-  expect(windowsProgram('/init /mnt/f/Godot/Godot_v4.7-stable_win64.exe --headless')).toBe('godot')
+  expect(windowsProgram('timeout 1800 /mnt/d/Apps/Blender/blender.exe -b x.blend')).toBe('blender')
+  expect(windowsProgram('/init /mnt/d/Apps/Godot/Godot_v4.7-stable_win64.exe --headless')).toBe('godot')
   expect(windowsProgram('Audacity.exe')).toBe('audacity')
   expect(windowsProgram('python3 tool.py --out build.exe')).toBe('') // an argument naming an .exe is not a program run
   expect(windowsProgram('sh -c P=/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe; "$P" -Command x')).toBe('')
