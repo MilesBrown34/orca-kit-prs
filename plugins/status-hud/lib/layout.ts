@@ -53,6 +53,11 @@ export function chips(v: View): Chip[] {
   }
   const host = snap.host
   if (shows(cfg, 'count')) out.push({ label: ` ${snap.sessions.length} sessions `, fg: C.tx, bg: C.gray })
+  if (snap.live && shows(cfg, 'live')) out.push({ label: ` live ${snap.live} `, fg: C.gold, bg: C.goldD })
+  if (shows(cfg, 'apps')) out.push(...appChips(v))
+  if (host?.queue && host.queue.running + host.queue.pending > 0 && shows(cfg, 'apps')) {
+    out.push({ label: ` comfyui ${host.queue.running} running${host.queue.pending > 0 ? ` · ${host.queue.pending} queued` : ''} `, fg: C.cyan, bg: C.cyanD })
+  }
   if (shows(cfg, 'warnings')) {
     // Most urgent first: Windows memory (all of WSL stops at 100%), a session past the report mark (hand it over
     // soon), then a high load (watch).
@@ -63,6 +68,23 @@ export function chips(v: View): Chip[] {
     const over = snap.sessions.filter(s => s.tokens >= cfg.reportMark)
     if (over.length > 0) out.push({ label: ` ≥${kfmt(cfg.reportMark)}: ${over.map(s => s.name).join(' ')} `, fg: C.white, bg: C.rD, alert: 2 })
     if (host && loadLevel(host.load[0], host.threads, cfg) === 'red') out.push({ label: ` load ${host.load[0].toFixed(1)} high `, fg: C.white, bg: C.rD, alert: 3 })
+  }
+  return out
+}
+
+/**
+ * One chip per tracked program that is running: the sessions running it (one name per instance), then `+N` for
+ * instances no session claims (started detached, or by the human). Machine-wide counts come from the host reading.
+ */
+function appChips(v: View): Chip[] {
+  const out: Chip[] = []
+  for (const { label } of v.cfg.apps) {
+    const names = v.snap.sessions.flatMap(s => (s.apps ?? []).filter(a => a === label).map(() => s.name))
+    const total = Math.max(names.length, v.snap.host?.apps?.[label] ?? 0)
+    if (total === 0) continue
+    const others = total - names.length
+    const who = names.length === 0 ? 'running' : `${names.join(' ')}${others > 0 ? ` +${others}` : ''}`
+    out.push({ label: ` ${label}${total > 1 ? ` ×${total}` : ''}: ${who} `, fg: C.cyan, bg: C.cyanD })
   }
   return out
 }

@@ -60,6 +60,10 @@ export const ITEMS: { id: string; area: string; name: string; what: string; seen
     seen: 'Only in a project the kit set up (it has scripts/quiet-mode.sh), or while quiet mode is on.', when: 'in projects set up by the kit', shows: 'auto' },
   { id: 'count', area: 'Bottom chips', name: 'Session count', what: 'How many sessions are reporting.',
     seen: 'All the time.' },
+  { id: 'live', area: 'Bottom chips', name: 'Live version', what: 'The version of this project that is live now, as the board records it when a release ships (its DEPLOY line, e.g. "DEPLOY FREE (live v1.4.2)").',
+    seen: 'Only once the project has shipped a release with its version written on the board.', when: 'after a recorded release', shows: 'auto' },
+  { id: 'apps', area: 'Bottom chips', name: 'Programs in use', what: 'One chip per tracked program while it runs (Blender, Godot, Gemini by default; the trackApps setting), naming the sessions that started it; +N counts copies no session started, such as one you opened yourself. A ComfyUI chip shows its jobs running and waiting.',
+    seen: 'Only while one of those programs is running, or ComfyUI has jobs.', when: 'while a tracked program runs', shows: 'auto' },
   { id: 'warnings', area: 'Bottom chips', name: 'Alerts', what: 'Red or amber chips at the right, most urgent first: Windows memory near its limit, sessions past the report mark (named), a CPU load in the red.',
     seen: 'Only when something needs you; when all is fine there are none. This picture shows two so you can see them.', when: 'when something needs you', shows: 'auto' },
 ]
@@ -68,7 +72,7 @@ const S = (name: string, k: number, state: Heartbeat['state'], project: string, 
   ({ id: name, name, model: 'opus', account, tokens: k * 1000, window: 1_000_000, state, activity, at: 0, project, color })
 const sessions = [
   S('Lead', 170, 'busy', 'my-app', '#16a085', 1, 'orchestrating · row 7 gate queued'),
-  S('Mars', 64, 'busy', 'my-app', '#16a085', 1, 'row 6-3 settings page'),
+  { ...S('Mars', 64, 'busy', 'my-app', '#16a085', 1, 'row 6-3 settings page'), apps: ['blender'] },
   S('Venus', 362, 'busy', 'my-app', '#16a085', 2, 'row 7-7 final gate'),
   S('Vulcan', 231, 'shell', 'my-app', '#16a085', 2, 'npm test'),
   S('Apollo', 120, 'idle', 'my-app', '#16a085', 1, 'READ row 6-4'),
@@ -77,12 +81,13 @@ const sessions = [
 ]
 const wave = (n: number, a: number, b: number, p: number): number[] => Array.from({ length: n }, (_, i) => a + b * Math.sin(i / p))
 export const SNAP: Snapshot = {
-  now: 0, selfId: 'Lead', sessions, quietMode: false,
+  now: 0, selfId: 'Lead', sessions, quietMode: false, live: 'v1.4.2',
   host: {
     at: 0, threads: 20, load: [18.6, 17.9, 16.2], ramUsedGb: 9.8, ramTotalGb: 16,
     gpu: { util: 31, vramUsedGb: 3.1, vramTotalGb: 8, tempC: 52 },
     disks: [{ mount: '/', usedGb: 410, totalGb: 1007 }, { mount: '/data', usedGb: 1200, totalGb: 2000 }],
     commit: { usedPct: 88, limitGb: 40, usedGb: 35, at: 0 },
+    apps: { blender: 1 },
     hist: { load: wave(60, 15, 4, 5), ram: wave(60, 9, 1, 7), gpu: wave(60, 30, 15, 3) },
   },
 }

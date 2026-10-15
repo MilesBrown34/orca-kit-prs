@@ -5,6 +5,7 @@ import type { Heartbeat, Snapshot } from '../types'
 import { parseConfig, type Config } from '../lib/config'
 import { accountFromConfigDir, nameFromArgs, oneLine } from '../lib/heartbeat'
 import { projectColor, repoFromCommonDir } from '../lib/project'
+import { countApps, liveVersion, parsePs } from '../lib/apps'
 import type { Io } from '../lib/io'
 import { ensureStatusDirs } from '../lib/ensureDir'
 import { newTickState, tick } from '../lib/tick'
@@ -39,6 +40,10 @@ const S: {
   repo: string
   tabColor: string
   colorAt: number
+  /** The claude process this mod runs in: tracked programs below it are this session's. 0 = unknown. */
+  claudePid: number
+  /** This session's project's live version, read from its board with the dot color. */
+  live: string
   /** Set by `/hud band|pane` (true) or `/hud off` (false) in this process only: it overrides showForNames here and nowhere else. */
   forceShow: boolean | null
 } = {
@@ -53,6 +58,8 @@ const S: {
   repo: '',
   tabColor: '',
   colorAt: 0,
+  claudePid: 0,
+  live: '',
   forceShow: null,
 }
 
@@ -101,7 +108,8 @@ async function doTick($: Dollar): Promise<void> {
         /* no response yet: keep the last reading */
       }
       await refreshColor(c, io, now)
-      const snap = await tick(io, c, S.me, S.ts, exists, S.cwd)
+      await refreshApps(c, io)
+      const snap = { ...(await tick(io, c, S.me, S.ts, exists, S.cwd)), live: S.live }
       S.hasFlash = Object.keys(S.ts.flash).length > 0
       S.anyBusy = snap.sessions.some(x => x.state === 'busy')
       S.last = snap
@@ -126,6 +134,15 @@ async function refreshColor(c: Config, io: Io, now: number): Promise<void> {
   const colors = S.repo ? ((await io.read(`${c.kitRuntimeDir}/tab-colors`)) ?? '') : ''
   const overlay = S.repo ? ((await io.read(`${S.repo}/docs/orchestration/ORCHESTRATION.md`)) ?? '') : ''
   S.me.color = projectColor(S.repo, colors, overlay, S.tabColor)
+  const board = S.repo ? ((await io.read(`${S.repo}/${c.board}`)) ?? '') : ''
+  S.live = liveVersion(board)
+}
+
+/** The tracked programs this session started and is still waiting on: its claude process's descendants. */
+async function refreshApps(c: Config, io: Io): Promise<void> {
+  if (c.apps.length === 0 || S.claudePid === 0) return
+  const r = await io.run(['ps', '-eo', 'pid=,ppid=,args='])
+  S.me.apps = r.exitCode === 0 ? countApps(parsePs(r.stdout), c.apps, S.claudePid) : []
 }
 
 async function flipQuiet($: Dollar): Promise<string> {
@@ -210,8 +227,9 @@ export const register: Register = (on, options) => {
     me.id = await $.session.id()
     me.model = (await $.session.model()).replace(/^claude-/, '').replace(/-\d.*$/, '')
     // The engine gives a mod no session name: read it off the parent claude process (`sh`'s parent is claude).
-    const ps = await S.io.run(['sh', '-c', 'ps -o args= -p $PPID; echo ::; tr "\\0" "\\n" < /proc/$PPID/environ 2>/dev/null | grep "^CLAUDE_CONFIG_DIR="'])
-    const [args = '', env = ''] = ps.stdout.split('::')
+    const ps = await S.io.run(['sh', '-c', 'ps -o args= -p $PPID; echo ::; tr "\\0" "\\n" < /proc/$PPID/environ 2>/dev/null | grep "^CLAUDE_CONFIG_DIR="; echo ::; echo $PPID'])
+    const [args = '', env = '', pid = ''] = ps.stdout.split('::')
+    S.claudePid = Number(pid.trim()) || 0
     me.name = c.sessionName || (await $.env.get('CLAUDE_HUD_NAME')) || nameFromArgs(args) || `s-${me.id.slice(0, 6)}`
     // The project: the main checkout of the session's directory, so a sibling in its own worktree counts too.
     const common = S.cwd ? await S.io.run(['git', '-C', S.cwd, 'rev-parse', '--path-format=absolute', '--git-common-dir']) : { exitCode: 1, stdout: '' }

@@ -292,3 +292,16 @@ test('a busy session\'s mark turns between full refreshes (redrawn every half se
   await $.tool.call({ tool: 'Read', description: 'Read a file' } as never)
   expect(new Set(turns).size).toBeGreaterThan(1)
 })
+
+test('tracked programs a session started ride its heartbeat and draw as a chip; the board gives the live version', async ($, on) => {
+  const w = world(on, { repo: '/r/app', ps: '4242 1 claude --name Orca\n4300 4242 bash -c x\n4301 4300 godot --headless\n5000 1 godot --editor' })
+  w.files.set('/r/app/docs/orchestration/AGENT_BOARD.md', '**Slots:** DEPLOY FREE (live v0.2) · LOG FREE (next 1)\n')
+  await $.session.start(START)
+  await w.clock.advance(500)
+  const hb = JSON.parse(w.files.get('/home/u/.claude-status-hud/sessions/sess-1234567.json') ?? '{}')
+  expect(hb.apps).toEqual(['godot'])
+  const band = await $.ui.mount({ plugin: 'status-hud', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  const tree = JSON.stringify(await band.drawn())
+  expect(tree).toContain('live v0.2')
+  expect(tree).toContain('godot: Orca')
+})

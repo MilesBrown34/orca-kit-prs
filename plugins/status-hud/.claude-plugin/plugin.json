@@ -88,6 +88,30 @@
       "description": "Comma-separated ids of items to switch off, e.g. history,context-key (README: Items). The setup page (scripts/hud-guide.sh open in the kit) picks them on a picture.",
       "default": ""
     },
+    "trackApps": {
+      "type": "string",
+      "title": "Tracked programs",
+      "description": "Comma-separated programs that get a chip while they run, naming the sessions that started them, e.g. blender,godot,gemini. A name matches a program file (or the script a runtime runs) starting with it; label=name uses another file name. Empty switches the chips off.",
+      "default": "blender,godot,gemini"
+    },
+    "windowsAppsCmd": {
+      "type": "string",
+      "title": "Windows programs command",
+      "description": "Prints Windows' running programs as tasklist CSV, so a tracked program started outside a session counts too. Run at most every commitSeconds. Empty skips Windows.",
+      "default": "T=/mnt/c/Windows/System32/tasklist.exe; [ -x \"$T\" ] && \"$T\" /fo csv /nh"
+    },
+    "comfyUrl": {
+      "type": "string",
+      "title": "ComfyUI address",
+      "description": "A ComfyUI server whose job queue gets a chip while it has jobs. Empty skips it.",
+      "default": "http://127.0.0.1:8188"
+    },
+    "boardFile": {
+      "type": "string",
+      "title": "Board file",
+      "description": "The project's board, relative to its main checkout. Its DEPLOY slot line, e.g. 'DEPLOY FREE (live v1.4.2)', gives the live-version chip.",
+      "default": "docs/orchestration/AGENT_BOARD.md"
+    },
     "kitRuntimeDir": {
       "type": "string",
       "title": "Kit runtime dir",

@@ -9,7 +9,7 @@ import { SAMPLE_OUT, fakeIo } from './fakeio'
 const flush = async (): Promise<void> => {
   for (let i = 0; i < 50; i++) await Promise.resolve()
 }
-const cfg = parseConfig({ statusDir: '/s', mounts: '/,/data', commitCmd: 'ps1' }, '/home/u')
+const cfg = parseConfig({ trackApps: '', statusDir: '/s', mounts: '/,/data', commitCmd: 'ps1' }, '/home/u')
 
 test('parsers read /proc, df and nvidia-smi output', async () => {
   const s = sections(SAMPLE_OUT)

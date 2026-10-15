@@ -1,5 +1,7 @@
 import type { PluginOptions } from 'claude-code'
 
+import { type App, parseApps } from './apps'
+
 export type Config = {
   variant: 'band' | 'pane' | 'off'
   amberMark: number
@@ -29,6 +31,14 @@ export type Config = {
   hide: Set<string>
   /** The kit's runtime dir: the launcher records each project's tab color there (tab-colors). */
   kitRuntimeDir: string
+  /** Programs that get a chip while they run (trackApps). */
+  apps: App[]
+  /** Prints Windows' running programs (tasklist CSV); empty skips Windows. Spaced out by commitSeconds. */
+  winAppsCmd: string
+  /** ComfyUI's address; its queue gets a chip while it has jobs. Empty skips it. */
+  comfyUrl: string
+  /** The board file, relative to the project: its DEPLOY slot line carries the live version. */
+  board: string
 }
 
 const num = (v: unknown, d: number, min = 0): number =>
@@ -63,5 +73,9 @@ export function parseConfig(o: PluginOptions, home: string): Config {
     dotMode: str(o.dotMode, 'account') === 'project' ? 'project' : 'account',
     hide: new Set(str(o.hideItems).split(',').map(s => s.trim().toLowerCase()).filter(Boolean)),
     kitRuntimeDir: (str(o.kitRuntimeDir).trim() || '~/.orchestration-kit/runtime').replace(/^~(?=\/|$)/, home),
+    apps: parseApps(str(o.trackApps, 'blender,godot,gemini')),
+    winAppsCmd: str(o.windowsAppsCmd, 'T=/mnt/c/Windows/System32/tasklist.exe; [ -x "$T" ] && "$T" /fo csv /nh').trim(),
+    comfyUrl: str(o.comfyUrl, 'http://127.0.0.1:8188').trim().replace(/\/+$/, ''),
+    board: str(o.boardFile, 'docs/orchestration/AGENT_BOARD.md').trim(),
   }
 }

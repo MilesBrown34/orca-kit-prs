@@ -55,7 +55,7 @@ section is here, no orchestrator is active.
 ````markdown
 ## 🎛 ORCHESTRATOR ACTIVE — era-<N> · <SeatName> `[<ref>]` · seated <HH:MM TZ YYYY-MM-DD> · prefix `<P>-` · <model>, <window> window (own env block) · fill <NNN,NNN> measured
 **Siblings: report to `<SeatName> [<ref>]`.** ⛔ All human approvals/questions route through the SEAT · Validator = `<Name>` (never builds) · siblings don't spawn agents unless the human asks.
-**Slots:** DEPLOY FREE · LOG FREE (next <N>) · resource windows: none open
+**Slots:** DEPLOY FREE (live <version>) · LOG FREE (next <N>) · resource windows: none open
 
 **Roster (from READY signals only — never from ListAgents):**
 

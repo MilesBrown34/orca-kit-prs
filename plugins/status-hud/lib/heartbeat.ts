@@ -31,6 +31,7 @@ export function parseHeartbeat(text: string): Heartbeat | null {
     // The optional fields travel too: without them another session's row loses its project and dot color.
     ...(typeof o.project === 'string' ? { project: o.project } : {}),
     ...(typeof o.color === 'string' && /^(#[0-9a-fA-F]{6})?$/.test(o.color) ? { color: o.color } : {}),
+    ...(Array.isArray(o.apps) ? { apps: o.apps.filter((a): a is string => typeof a === 'string').slice(0, 20) } : {}),
   }
 }
 

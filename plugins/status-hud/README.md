@@ -22,7 +22,7 @@ Switch while running with `/hud band`, `/hud pane` or `/hud off`. The choice is 
   A session that crosses the report mark **flashes red** for `flashSeconds`.
 - **Host**: CPU load against the thread count (with sparkline), RAM, disks, GPU utilization and temperature, VRAM.
 - **Windows commit limit** (WSL): amber at `commitWarnPct`, red at `commitCritPct`. This is a real failure mode: Windows hits its commit limit and stops the WSL VM while the Linux side looks fine, with nothing logged inside Linux.
-- **Chips**: WORK/QUIET (shown only where the kit's quiet-mode script exists; clickable when both commands are configured; red `failed` for a minute after a failed press) and the session count from the left; alerts against the right edge (on a row of their own in the pane), most urgent first: Windows commit, sessions over the report mark, load high.
+- **Chips**: WORK/QUIET (shown only where the kit's quiet-mode script exists; clickable when both commands are configured; red `failed` for a minute after a failed press) the session count, the project's live version (`live v1.4.2`, from the board's `DEPLOY FREE (live v1.4.2)` line; none recorded, no chip), and one chip per tracked program while it runs (`blender ×2: Mars +1`: the sessions that started and are waiting on it, `+N` for copies no session claims, e.g. ones opened by hand; `running` when none does) plus ComfyUI's queue while it has jobs, from the left; alerts against the right edge (on a row of their own in the pane), most urgent first: Windows commit, sessions over the report mark, load high.
 - **Dots**: by Claude account (default), or by project (`dotMode: project`), so one HUD tells several projects' teams apart. A session's project is the main checkout of its directory (a sibling in its own worktree counts). Its dot color is, first that applies: the color of its own terminal tab when the launcher that opened it set `CLAUDE_TAB_COLOR`; the color the kit's launcher recorded for the project in `<kitRuntimeDir>/tab-colors` (lines `<repo path><TAB>#rrggbb`); `tab_color: #rrggbb` in the team block of the project's `docs/orchestration/ORCHESTRATION.md`; else a fixed color picked from the project's name. Missing files are skipped. In project mode the key row names each project in its color and the sessions title counts projects. Hex colors are drawn as 24-bit color where the terminal says it supports it (`COLORTERM=truecolor`).
 
 ## How it works
@@ -107,6 +107,10 @@ The quiet-mode values above are the defaults: the flag file the kit's `scripts/q
 | `showForNames` | `Orca` | Comma-separated session names that draw the HUD (exact, case-sensitive). Empty shows it in every session. kit-init sets your seat. |
 | `dotMode` | `account` | `account` or `project` (see Dots above). |
 | `hideItems` | (none) | Comma-separated item ids to switch off; see Items below. |
+| `trackApps` | `blender,godot,gemini` | Programs that get a chip while running (see Chips). `label=name` matches another file name. Empty: no program chips. |
+| `windowsAppsCmd` | tasklist one-liner | Prints Windows' running programs (CSV), so programs started outside a session count too. Empty skips Windows. |
+| `comfyUrl` | `http://127.0.0.1:8188` | A ComfyUI server; its queue gets a chip while it has jobs. Empty skips it. |
+| `boardFile` | `docs/orchestration/AGENT_BOARD.md` | The project's board; the live version comes from its DEPLOY slot line. |
 | `kitRuntimeDir` | `~/.orchestration-kit/runtime` | Where the kit's launcher records project tab colors (`tab-colors`), read for project dots. |
 | `statusDir` | `~/.claude-status-hud` | Shared directory. All sessions must use the same one. |
 | `sessionName` | (detected) | Override the detected session name. |
@@ -130,9 +134,9 @@ Every drawn item has an id for `hideItems`. Unknown ids are ignored. The setup p
 |---|---|
 | Host | `host-title`, `cpu`, `history`, `ram`, `win`, `gpu`, `vram`, `disk`, `disk2` |
 | Sessions | `sessions-title`, `context-key`, `state-key`, `dot-key`, `dot`, `model`, `bar`, `tokens`, `state`, `activity`, `column2`, `frame-title` |
-| Chips | `work-mode`, `count`, `warnings` |
+| Chips | `work-mode`, `count`, `live`, `apps`, `warnings` |
 
-`dot-key` is the project key (project mode only); `disk2` is any disk after the first; `column2` is the band's second column of session rows (off: one column and `+N more`); `warnings` is every alert chip.
+`dot-key` is the project key (project mode only); `disk2` is any disk after the first; `column2` is the band's second column of session rows (off: one column and `+N more`); `apps` is every program chip and the ComfyUI queue chip; `warnings` is every alert chip.
 
 ## Develop
 

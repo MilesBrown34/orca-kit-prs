@@ -31,7 +31,7 @@ File `<tag>-1`, `<tag>-2` … numbered within your OWN session (LESSON 16). Neve
 
 ## Slots + windows
 
-- **DEPLOY slot:** claim in writing BEFORE running the deploy; release with the verified live version.
+- **DEPLOY slot:** claim in writing BEFORE running the deploy; release with the verified live version, written `DEPLOY FREE (live <version>)` (the status HUD shows it).
 - **LOG slot:** claim before appending any milestone/log entry; the number is allocated inside the claim text (LESSON 17).
 - **Resource windows:** announce gate runs, integration/container runs, deploys, and shared-daemon dev-stack boots BEFORE running them; mark the window CLOSED when done (LESSON 19).
 
