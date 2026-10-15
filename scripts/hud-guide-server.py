@@ -9,7 +9,8 @@ Writes the URL to DIR/hud-guide.url once it listens. GET <key>/ serves the page;
 {"dotMode": ..., "hideItems": ...} runs `hud-guide.sh apply` once per account (DIR "default" = the default
 account) and answers {"ok": bool, "message": str}. After a saved answer (never in try mode) it writes DIR/hud-guide.result
 ("ok" or "failed", then the messages) and exits; a failed save keeps it listening so the page can retry.
---try: try mode, Done runs `hud-guide.sh apply --try` (it checks and reports, saves nothing).
+--try: try mode, Done runs `hud-guide.sh apply --try` (it checks and reports, saves nothing) and writes the result
+("try") like a real save, so `hud-guide.sh wait` confirms it; the server keeps listening.
 It also exits after --idle seconds (default 3600) with no request, writing "timeout".
 Refused: any other path, a Host or Origin that is not this server (another web page or a renamed address),
 a body that is not JSON, larger than 4 KB, or holds anything but dotMode and hideItems.
@@ -31,11 +32,15 @@ last = [time.monotonic()]
 done = threading.Event()
 
 
-def finish(status, msg):
+def record(status, msg):
     tmp = os.path.join(a.state, 'hud-guide.result.tmp')
     with open(tmp, 'w', encoding='utf-8') as f:
         f.write(status + '\n' + msg.rstrip() + '\n')
     os.replace(tmp, os.path.join(a.state, 'hud-guide.result'))
+
+
+def finish(status, msg):
+    record(status, msg)
     done.set()
 
 
@@ -104,7 +109,9 @@ class H(BaseHTTPRequestHandler):
             return self.send(400, json.dumps({'ok': False, 'message': 'only dotMode and hideItems can be saved here'}))
         ok, msg = apply(v)
         self.send(200, json.dumps({'ok': ok, 'message': msg}))
-        if ok and not a.dry:  # try mode keeps listening, so Done can be pressed again
+        if ok and a.dry:  # try mode reports like a save, and keeps listening so Done can be pressed again
+            record('try', msg)
+        elif ok:
             finish('ok', msg)
 
 

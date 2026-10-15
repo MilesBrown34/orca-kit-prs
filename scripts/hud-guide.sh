@@ -10,6 +10,7 @@
 #                                 --file: open it as a plain file instead; Done then copies a line to paste to Claude
 #                                 --try: try it safely: Done only reports what it would save; no setting changes
 #   hud-guide.sh wait [SECONDS]   wait (default 3600 s) for Done on the page opened by open; print what was saved
+#                                 (in try mode, what would have been)
 #   hud-guide.sh apply [--try] '<line>'
 #                                 save the line the page copied ("Apply my status HUD choices ...: {...}") to the HUD's settings
 #   hud-guide.sh build            (kit developers) rebuild docs/status-hud-guide.html from the HUD's drawing code
@@ -25,7 +26,7 @@ HUD="$KIT/plugins/status-hud"
 PAGE="$KIT/docs/status-hud-guide.html"
 PLUGIN="status-hud@artekka-kits"
 RT="${KIT_RUNTIME_DIR:-$HOME/.orchestration-kit/runtime}"
-usage() { sed -n '5,20p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 64; }
+usage() { sed -n '5,21p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 64; }
 browse() {  # <file or URL>: the system's browser; says so when none
   if command -v wslpath >/dev/null 2>&1 && command -v explorer.exe >/dev/null 2>&1; then
     case "$1" in http*) explorer.exe "$1" ;; *) explorer.exe "$(wslpath -w "$1")" ;; esac >/dev/null 2>&1 || true
@@ -99,7 +100,7 @@ sys.stdout.write(t.replace("const PRESET = null;", "const PRESET = " + os.enviro
       sleep 1
     done
     status="$(head -1 "$RT/hud-guide.result")"; tail -n +2 "$RT/hud-guide.result"
-    case "$status" in ok) exit 0 ;; timeout) exit 2 ;; *) exit 1 ;; esac ;;
+    case "$status" in ok|try) exit 0 ;; timeout) exit 2 ;; *) exit 1 ;; esac ;;
   apply)
     shift; dry=; [ "${1:-}" = --try ] && { dry=1; shift; }
     [ $# -ge 1 ] || usage

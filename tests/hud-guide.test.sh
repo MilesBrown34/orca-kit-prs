@@ -125,6 +125,7 @@ url="$(cat "$TMP/rt/hud-guide.url")"; has "open --try: the browser gets the try 
 r="$(http GET "${url}?try=1")"; has "try: the page" "200 <!doctype html>" "$r"; has "try: the page has its banner" 'id="trybar"' "$r"
 r="$(http POST "${url}apply" '{"dotMode":"account","hideItems":"history"}')"; has "try: Done answers" '"ok": true' "$r"; has "try: says nothing was saved" "nothing saved" "$r"
 [ ! -e "$TMP/accounts" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL try mode reached configure"; }
+out="$(g wait 5)"; rc_is "try: wait confirms the Done" 0 $?; has "try: wait says what it would save" 'Done would save: {"dotMode": "account", "hideItems": "history"}' "$out"
 r="$(http POST "${url}apply" '{"dotMode":"account","hideItems":"nope"}')"; has "try: unknown items still refused" '"ok": false' "$r"
 sleep 1.5; r="$(http GET "$url")"; has "try: still open after Done" "200" "$r"
 kill "$(cat "$TMP/rt/hud-guide.pid")" 2>/dev/null
