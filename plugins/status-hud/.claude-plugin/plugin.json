@@ -94,6 +94,18 @@
       "description": "Comma-separated programs that get a chip while they run, naming the sessions that started them, e.g. blender,godot,gemini. A name matches a program file (or the script a runtime runs) starting with it; label=name uses another file name. Empty switches the chips off.",
       "default": "blender,godot,gemini"
     },
+    "autoWindowsApps": {
+      "type": "boolean",
+      "title": "Find Windows programs",
+      "description": "Any Windows program a session starts and waits on gets a chip under its own name, without being listed in trackApps (on WSL). Programs opened by hand are not found this way.",
+      "default": true
+    },
+    "ignoreApps": {
+      "type": "string",
+      "title": "Programs never shown",
+      "description": "Comma-separated Windows program names that never get a chip of their own: helpers the sessions and the HUD run all the time.",
+      "default": "cmd,powershell,pwsh,conhost,curl,tasklist,explorer,wsl,wslhost,where,whoami,clip,reg,taskkill,code"
+    },
     "windowsAppsCmd": {
       "type": "string",
       "title": "Windows programs command",

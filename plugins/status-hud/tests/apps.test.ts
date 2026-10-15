@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { countApps, countWindows, liveVersion, matchArgs, parseApps, parsePs, parseQueue } from '../lib/apps'
+import { countApps, countWindows, liveVersion, matchArgs, parseApps, parsePs, parseQueue, windowsProgram } from '../lib/apps'
 import { parseConfig } from '../lib/config'
 import { refreshHost } from '../lib/hostRefresh'
 import { chips, type View } from '../lib/layout'
@@ -75,7 +75,7 @@ test('host refresh: machine-wide counts take the larger of the Linux and Windows
       const cmd = String(a[2] ?? '')
       if (cmd.includes('tasklist')) return (winCalls++, { exitCode: 0, stdout: '"blender.exe","1"\n"blender.exe","2"' })
       if (cmd.includes('/proc/loadavg')) {
-        expect(cmd).toContain("curl -s -m 1 'http://127.0.0.1:8188/queue'")
+        expect(cmd).toContain("C=/mnt/c/Windows/System32/curl.exe; [ -x \"$C\" ] || C=curl; \"$C\" -s -m 1 'http://127.0.0.1:8188/queue'")
         return { exitCode: 0, stdout: `${SAMPLE_OUT}\n##ps\n${PS}\n##queue\n{"queue_running":[],"queue_pending":[[1]]}` }
       }
       return undefined
@@ -126,4 +126,40 @@ test('chips: nothing running, no queue, no version: none of them; hideItems swit
 
 test('chips: a session count above the machine count still shows every session', async () => {
   expect(labels(view({ host: { ...host, apps: {} } }))).toContain('blender ×2: Mars Venus')
+})
+
+test('windowsProgram: the .exe a command runs (after wrappers only), named by its leading letters', async () => {
+  expect(windowsProgram('/mnt/c/Program Files/Krita (x64)/bin/krita.exe --nosplash a.kra')).toBe('krita')
+  expect(windowsProgram('timeout 1800 /mnt/f/3D Objects/Tools/Blender/blender.exe -b x.blend')).toBe('blender')
+  expect(windowsProgram('/init /mnt/f/Godot/Godot_v4.7-stable_win64.exe --headless')).toBe('godot')
+  expect(windowsProgram('Audacity.exe')).toBe('audacity')
+  expect(windowsProgram('python3 tool.py --out build.exe')).toBe('') // an argument naming an .exe is not a program run
+  expect(windowsProgram('sh -c P=/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe; "$P" -Command x')).toBe('')
+  expect(windowsProgram('godot --headless')).toBe('')
+})
+
+test('auto: a Windows program a session runs gets its own chip label; the ignore list and other sessions\' do not', async () => {
+  const ps = parsePs([
+    '  100     1 claude --name Mars',
+    '  110   100 /mnt/c/Program Files/Krita/bin/krita.exe a.kra',
+    '  111   110 /init /mnt/c/Program Files/Krita/bin/krita.exe a.kra',
+    '  120   100 /mnt/c/Windows/System32/curl.exe -s x',
+    '  130   100 /mnt/c/Blender/blender.exe -b',
+    '  200     1 /mnt/c/Tools/obs64.exe',
+  ].join('\n'))
+  const ignore = new Set(['curl'])
+  expect(countApps(ps, APPS, 100, ignore).sort()).toEqual(['blender', 'krita'])
+  expect(countApps(ps, APPS, 100)).toEqual(['blender']) // auto off: listed programs only
+  expect(countApps(ps, APPS, 0, ignore)).toEqual(['blender']) // never machine-wide: those would include ones opened by hand
+})
+
+test('chips: programs found by themselves follow the listed ones, by name', async () => {
+  const v = view({ sessions: [hb('Mars', ['krita', 'blender']), hb('Venus', ['audacity'])], host: { ...host, apps: {}, queue: null } })
+  expect(labels(v)).toEqual(['2 sessions', 'live v0.2', 'blender: Mars', 'audacity: Venus', 'krita: Mars'])
+})
+
+test('config: autoWindowsApps false switches finding off; ignoreApps replaces the default list', async () => {
+  expect(parseConfig({ autoWindowsApps: false }, '/h').autoApps).toBe(null)
+  expect([...(parseConfig({ ignoreApps: 'Foo, bar' }, '/h').autoApps ?? [])]).toEqual(['foo', 'bar'])
+  expect(parseConfig({}, '/h').autoApps?.has('powershell')).toBe(true)
 })

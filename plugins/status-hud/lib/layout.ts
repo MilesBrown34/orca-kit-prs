@@ -78,7 +78,10 @@ export function chips(v: View): Chip[] {
  */
 function appChips(v: View): Chip[] {
   const out: Chip[] = []
-  for (const { label } of v.cfg.apps) {
+  // Listed programs first, in their order; then any a session runs that the list lacks (Windows programs found by themselves).
+  const listed = v.cfg.apps.map(a => a.label)
+  const found = [...new Set(v.snap.sessions.flatMap(s => s.apps ?? []))].filter(l => !listed.includes(l)).sort()
+  for (const label of [...listed, ...found]) {
     const names = v.snap.sessions.flatMap(s => (s.apps ?? []).filter(a => a === label).map(() => s.name))
     const total = Math.max(names.length, v.snap.host?.apps?.[label] ?? 0)
     if (total === 0) continue

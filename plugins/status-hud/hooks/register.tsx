@@ -140,9 +140,9 @@ async function refreshColor(c: Config, io: Io, now: number): Promise<void> {
 
 /** The tracked programs this session started and is still waiting on: its claude process's descendants. */
 async function refreshApps(c: Config, io: Io): Promise<void> {
-  if (c.apps.length === 0 || S.claudePid === 0) return
+  if ((c.apps.length === 0 && !c.autoApps) || S.claudePid === 0) return
   const r = await io.run(['ps', '-eo', 'pid=,ppid=,args='])
-  S.me.apps = r.exitCode === 0 ? countApps(parsePs(r.stdout), c.apps, S.claudePid) : []
+  S.me.apps = r.exitCode === 0 ? countApps(parsePs(r.stdout), c.apps, S.claudePid, c.autoApps) : []
 }
 
 async function flipQuiet($: Dollar): Promise<string> {

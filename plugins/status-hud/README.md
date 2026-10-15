@@ -108,8 +108,10 @@ The quiet-mode values above are the defaults: the flag file the kit's `scripts/q
 | `dotMode` | `account` | `account` or `project` (see Dots above). |
 | `hideItems` | (none) | Comma-separated item ids to switch off; see Items below. |
 | `trackApps` | `blender,godot,gemini` | Programs that get a chip while running (see Chips). `label=name` matches another file name. Empty: no program chips. |
+| `autoWindowsApps` | true | Any Windows program a session starts and waits on gets a chip under its own name (`krita`, `godot` from `Godot_v4.7-stable_win64.exe`), listed or not. |
+| `ignoreApps` | `cmd,powershell,curl,tasklist,…` | Windows programs that never get a chip of their own (helpers run all the time). |
 | `windowsAppsCmd` | tasklist one-liner | Prints Windows' running programs (CSV), so programs started outside a session count too. Empty skips Windows. |
-| `comfyUrl` | `http://127.0.0.1:8188` | A ComfyUI server; its queue gets a chip while it has jobs. Empty skips it. |
+| `comfyUrl` | `http://127.0.0.1:8188` | A ComfyUI server; its queue gets a chip while it has jobs. Asked through Windows' own curl on WSL (a server on Windows is out of WSL's reach). Empty skips it. |
 | `boardFile` | `docs/orchestration/AGENT_BOARD.md` | The project's board; the live version comes from its DEPLOY slot line. |
 | `kitRuntimeDir` | `~/.orchestration-kit/runtime` | Where the kit's launcher records project tab colors (`tab-colors`), read for project dots. |
 | `statusDir` | `~/.claude-status-hud` | Shared directory. All sessions must use the same one. |

@@ -26,6 +26,24 @@ export function matchArgs(args: string, apps: readonly App[]): string | null {
   return apps.find(a => names.some(n => n !== '' && n.startsWith(a.pat)))?.label ?? null
 }
 
+/** Commands that only start the program after them (and their own arguments: numbers, flags). */
+const WRAPPERS = new Set(['/init', 'timeout', 'nice', 'nohup', 'env', 'stdbuf', 'setsid', 'exec'])
+
+/**
+ * The Windows program a command line runs, as a chip label: its `.exe` name cut to its leading letters
+ * (`Godot_v4.7-stable_win64.exe` -> godot); '' when it runs none. The `.exe` must be the program itself, after
+ * nothing but wrappers, never an argument that merely names one.
+ */
+export function windowsProgram(args: string): string {
+  const t = args.trim()
+  const m = /(?:^|\s)((?:\/mnt\/[a-z]\/[^\n]*?)?[^\s\\/]+\.exe)(?=\s|$)/i.exec(t)
+  if (!m) return ''
+  const before = t.slice(0, m.index).split(/\s+/).filter(Boolean)
+  if (!before.every(w => WRAPPERS.has(w) || /^[-\d]/.test(w))) return ''
+  const name = base(m[1] as string)
+  return /^[a-z]+/.exec(name)?.[0] ?? name
+}
+
 type Proc = { pid: number; ppid: number; args: string }
 
 /** `ps -eo pid=,ppid=,args=` lines. */
@@ -41,11 +59,16 @@ export function parsePs(out: string): Proc[] {
 /**
  * One label per running instance. A process whose parent chain already matched the same label is part of that
  * instance (a program's own helpers), so it is not counted again. `root` limits it to that process's descendants
- * (a session's own runs); 0 counts the whole machine.
+ * (a session's own runs); 0 counts the whole machine. With `auto` (a session's runs only), any Windows program
+ * not in it gets a chip too, under its own name, so a newly driven tool needs no setting.
  */
-export function countApps(ps: readonly Proc[], apps: readonly App[], root = 0): string[] {
+export function countApps(ps: readonly Proc[], apps: readonly App[], root = 0, auto: ReadonlySet<string> | null = null): string[] {
   const byPid = new Map(ps.map(p => [p.pid, p]))
-  const label = new Map(ps.map(p => [p.pid, matchArgs(p.args, apps)]))
+  const autoLabel = (args: string): string | null => {
+    const w = auto && root !== 0 ? windowsProgram(args) : ''
+    return w !== '' && !auto?.has(w) ? w : null
+  }
+  const label = new Map(ps.map(p => [p.pid, matchArgs(p.args, apps) ?? autoLabel(p.args)]))
   const out: string[] = []
   for (const p of ps) {
     const l = label.get(p.pid)

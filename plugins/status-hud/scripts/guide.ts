@@ -62,7 +62,7 @@ export const ITEMS: { id: string; area: string; name: string; what: string; seen
     seen: 'All the time.' },
   { id: 'live', area: 'Bottom chips', name: 'Live version', what: 'The version of this project that is live now, as the board records it when a release ships (its DEPLOY line, e.g. "DEPLOY FREE (live v1.4.2)").',
     seen: 'Only once the project has shipped a release with its version written on the board.', when: 'after a recorded release', shows: 'auto' },
-  { id: 'apps', area: 'Bottom chips', name: 'Programs in use', what: 'One chip per tracked program while it runs (Blender, Godot, Gemini by default; the trackApps setting), naming the sessions that started it; +N counts copies no session started, such as one you opened yourself. A ComfyUI chip shows its jobs running and waiting.',
+  { id: 'apps', area: 'Bottom chips', name: 'Programs in use', what: 'One chip per program a session drives while it runs: Blender, Godot, Gemini by default (the trackApps setting), and on Windows any program a session starts, under its own name; each names the sessions that started it; +N counts copies no session started, such as one you opened yourself. A ComfyUI chip shows its jobs running and waiting.',
     seen: 'Only while one of those programs is running, or ComfyUI has jobs.', when: 'while a tracked program runs', shows: 'auto' },
   { id: 'warnings', area: 'Bottom chips', name: 'Alerts', what: 'Red or amber chips at the right, most urgent first: Windows memory near its limit, sessions past the report mark (named), a CPU load in the red.',
     seen: 'Only when something needs you; when all is fine there are none. This picture shows two so you can see them.', when: 'when something needs you', shows: 'auto' },

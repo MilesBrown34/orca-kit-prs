@@ -13,7 +13,8 @@ export function sampleScript(mounts: readonly string[], comfyUrl = '', withPs = 
     `echo '##df'; df -Pk ${mounts.map(shq).join(' ')} 2>/dev/null`,
     `echo '##gpu'; nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits 2>/dev/null`,
     ...(withPs ? [`echo '##ps'; ps -eo pid=,ppid=,args= 2>/dev/null`] : []),
-    ...(comfyUrl !== '' ? [`echo '##queue'; curl -s -m 1 ${shq(`${comfyUrl}/queue`)} 2>/dev/null; echo`] : []),
+    // On WSL, Windows' own curl: a server on Windows (127.0.0.1 there) is out of WSL's reach.
+    ...(comfyUrl !== '' ? [`echo '##queue'; C=/mnt/c/Windows/System32/curl.exe; [ -x "$C" ] || C=curl; "$C" -s -m 1 ${shq(`${comfyUrl}/queue`)} 2>/dev/null; echo`] : []),
     `true`,
   ].join('; ')
 }

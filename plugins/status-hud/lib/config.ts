@@ -33,6 +33,8 @@ export type Config = {
   kitRuntimeDir: string
   /** Programs that get a chip while they run (trackApps). */
   apps: App[]
+  /** Windows programs a session runs get a chip without being listed (autoWindowsApps); these names never do. */
+  autoApps: ReadonlySet<string> | null
   /** Prints Windows' running programs (tasklist CSV); empty skips Windows. Spaced out by commitSeconds. */
   winAppsCmd: string
   /** ComfyUI's address; its queue gets a chip while it has jobs. Empty skips it. */
@@ -74,6 +76,7 @@ export function parseConfig(o: PluginOptions, home: string): Config {
     hide: new Set(str(o.hideItems).split(',').map(s => s.trim().toLowerCase()).filter(Boolean)),
     kitRuntimeDir: (str(o.kitRuntimeDir).trim() || '~/.orchestration-kit/runtime').replace(/^~(?=\/|$)/, home),
     apps: parseApps(str(o.trackApps, 'blender,godot,gemini')),
+    autoApps: o.autoWindowsApps === false ? null : new Set(str(o.ignoreApps, 'cmd,powershell,pwsh,conhost,curl,tasklist,explorer,wsl,wslhost,where,whoami,clip,reg,taskkill,code').split(',').map(s => s.trim().toLowerCase()).filter(Boolean)),
     winAppsCmd: str(o.windowsAppsCmd, 'T=/mnt/c/Windows/System32/tasklist.exe; [ -x "$T" ] && "$T" /fo csv /nh').trim(),
     comfyUrl: str(o.comfyUrl, 'http://127.0.0.1:8188').trim().replace(/\/+$/, ''),
     board: str(o.boardFile, 'docs/orchestration/AGENT_BOARD.md').trim(),
