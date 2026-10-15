@@ -119,6 +119,19 @@ g open >/dev/null; u1="$(cat "$TMP/rt/hud-guide.url")"; g open >/dev/null; u2="$
 sleep 0.3; r="$(http GET "$u1" 2>&1)"; hasnt "the first page's server is gone" "200 <!doctype" "$r"
 kill "$(cat "$TMP/rt/hud-guide.pid")" 2>/dev/null; rm -f "$TMP/accounts" "$TMP/configured"
 
+# open --try: the same page, but Done only says what it would save; nothing reaches configure, and it keeps listening.
+out="$(g open --try)"; rc_is "open --try: exit 0" 0 $?; has "open --try: says try mode" "try mode" "$out"
+url="$(cat "$TMP/rt/hud-guide.url")"; has "open --try: the browser gets the try address" "${url}?try=1" "$(cat "$TMP/opened")"
+r="$(http GET "${url}?try=1")"; has "try: the page" "200 <!doctype html>" "$r"; has "try: the page has its banner" 'id="trybar"' "$r"
+r="$(http POST "${url}apply" '{"dotMode":"account","hideItems":"history"}')"; has "try: Done answers" '"ok": true' "$r"; has "try: says nothing was saved" "nothing saved" "$r"
+[ ! -e "$TMP/accounts" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL try mode reached configure"; }
+r="$(http POST "${url}apply" '{"dotMode":"account","hideItems":"nope"}')"; has "try: unknown items still refused" '"ok": false' "$r"
+sleep 1.5; r="$(http GET "$url")"; has "try: still open after Done" "200" "$r"
+kill "$(cat "$TMP/rt/hud-guide.pid")" 2>/dev/null
+out="$(g apply --try '{"dotMode":"project","hideItems":"history"}')"; rc_is "apply --try: exit 0" 0 $?; has "apply --try: says what it would save" '"hideItems": "history"' "$out"
+[ ! -e "$TMP/accounts" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL apply --try reached configure"; }
+out="$(g apply --try '{"hideItems":"nope"}')"; rc_is "apply --try: unknown id refused" 1 $?
+
 # apply: only the HUD's choices, only known ids.
 out="$(g apply 'Apply my status HUD choices (orchestration-kit: bash scripts/hud-guide.sh apply in the kit): {"dotMode":"project","hideItems":"context-key,history"}')"; rc_is "apply: exit 0" 0 $?
 has "apply: sent to configure" '"hideItems": "context-key,history"' "$(cat "$TMP/configured")"

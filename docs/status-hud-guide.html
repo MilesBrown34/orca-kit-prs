@@ -87,10 +87,14 @@ h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
 .item.flash { animation: flash 1.6s ease-out; }
 @keyframes flash { 0%, 30% { background: #ffd33d55; box-shadow: 0 0 0 2px #ffd33d; } 100% { background: transparent; box-shadow: none; } }
 .btn:disabled { opacity: .55; cursor: default; }
+.trybar { background: #fff1c2; color: #6b4a00; border-radius: 10px; padding: 10px 14px; margin: 0 0 18px; font-weight: 600; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .trybar { background: #3d2e00; color: #ffd98a; } }
+:root[data-theme="dark"] .trybar { background: #3d2e00; color: #ffd98a; }
 </style>
 </head>
 <body>
 <main>
+  <div class="trybar" id="trybar" hidden>Try mode: press anything, including Done. Done only shows what it would save; your HUD settings stay as they are.</div>
   <h1>Set up your status HUD</h1>
   <p class="lede">The HUD is the panel above your main session's prompt. It shows every Claude session you run and how hard your machine is working. Each numbered item below can be kept or removed. This picture uses sample data, and some items only appear when they matter.</p>
 
@@ -142,6 +146,7 @@ const PRESET = null;
 const DEFAULT_OFF = new Set();
 // Served by scripts/hud-guide-server.py (http://127.0.0.1:<port>/<key>/): Done saves. Opened as a file: copy and paste.
 const SERVED = location.protocol === 'http:' && /^\/[A-Za-z0-9_-]{16,}\/(index\.html)?$/.test(location.pathname);
+const TRY = SERVED && new URLSearchParams(location.search).get('try') === '1';
 const SHOWS = { auto: ['auto', 'Appears by itself'], setting: ['set', 'Turn on'] };
 function tagFor(it) {
   const t = document.createElement('span');
@@ -293,6 +298,7 @@ document.getElementById('copy').onclick = async () => {
   catch { const r = document.createRange(); r.selectNodeContents(document.getElementById('out')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.execCommand('copy'); }
   t.textContent = 'Copied'; setTimeout(() => { t.textContent = ''; }, 2500);
 };
+if (TRY) document.getElementById('trybar').hidden = false;
 if (SERVED) {
   document.getElementById('stepsServed').hidden = false; document.getElementById('stepsFile').hidden = true;
   document.getElementById('out').hidden = true; document.getElementById('done').hidden = false;
@@ -306,6 +312,7 @@ document.getElementById('done').onclick = async () => {
     const r = await fetch('apply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o) });
     const j = await r.json();
     if (!j.ok) throw new Error(j.message || 'not saved');
+    if (TRY) { t.textContent = j.message; b.disabled = false; return; }
     t.textContent = 'Saved. The HUD redraws with it from each session\'s next start; you can close this tab.';
     b.textContent = 'Saved';
     document.getElementById('reset').disabled = true;

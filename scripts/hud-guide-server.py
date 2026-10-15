@@ -2,13 +2,14 @@
 """hud-guide-server.py — serves the status HUD setup page to this machine only, so its Done button can save
 the choices (orchestration-kit). Started by `scripts/hud-guide.sh open`; not meant to be run by hand.
 
-  hud-guide-server.py --page FILE --guide hud-guide.sh --state DIR [--account DIR]... [--idle SECONDS]
+  hud-guide-server.py --page FILE --guide hud-guide.sh --state DIR [--account DIR]... [--idle SECONDS] [--try]
 
 Listens on 127.0.0.1 at a free port, under a random one-time path (http://127.0.0.1:<port>/<key>/).
 Writes the URL to DIR/hud-guide.url once it listens. GET <key>/ serves the page; POST <key>/apply with
 {"dotMode": ..., "hideItems": ...} runs `hud-guide.sh apply` once per account (DIR "default" = the default
-account) and answers {"ok": bool, "message": str}. After a saved answer it writes DIR/hud-guide.result
+account) and answers {"ok": bool, "message": str}. After a saved answer (never in try mode) it writes DIR/hud-guide.result
 ("ok" or "failed", then the messages) and exits; a failed save keeps it listening so the page can retry.
+--try: try mode, Done runs `hud-guide.sh apply --try` (it checks and reports, saves nothing).
 It also exits after --idle seconds (default 3600) with no request, writing "timeout".
 Refused: any other path, a Host or Origin that is not this server (another web page or a renamed address),
 a body that is not JSON, larger than 4 KB, or holds anything but dotMode and hideItems.
@@ -22,6 +23,7 @@ ap.add_argument('--guide', required=True)
 ap.add_argument('--state', required=True)
 ap.add_argument('--account', action='append', default=[])
 ap.add_argument('--idle', type=float, default=3600)
+ap.add_argument('--try', dest='dry', action='store_true')
 a = ap.parse_args()
 KEY = secrets.token_urlsafe(18)
 ACCOUNTS = a.account or ['default']
@@ -45,7 +47,7 @@ def apply(vals):
             env.pop('CLAUDE_CONFIG_DIR', None)
         else:
             env['CLAUDE_CONFIG_DIR'] = acct
-        r = subprocess.run(['bash', a.guide, 'apply', json.dumps(vals)], env=env, capture_output=True, text=True, timeout=120)
+        r = subprocess.run(['bash', a.guide, 'apply'] + (['--try'] if a.dry else []) + [json.dumps(vals)], env=env, capture_output=True, text=True, timeout=120)
         who = 'the default account' if acct == 'default' else acct
         text = (r.stdout + r.stderr).strip()
         out.append(('%s: %s' % (who, text)) if len(ACCOUNTS) > 1 else text)
@@ -102,7 +104,7 @@ class H(BaseHTTPRequestHandler):
             return self.send(400, json.dumps({'ok': False, 'message': 'only dotMode and hideItems can be saved here'}))
         ok, msg = apply(v)
         self.send(200, json.dumps({'ok': ok, 'message': msg}))
-        if ok:
+        if ok and not a.dry:  # try mode keeps listening, so Done can be pressed again
             finish('ok', msg)
 
 
