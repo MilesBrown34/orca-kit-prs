@@ -15,7 +15,7 @@ cat > "$B/claude" <<EOF
 if [ "\$*" = "plugin configure status-hud@artekka-kits --json" ]; then
   echo '{"inputs":{"dotMode":"project","hideItems":"history,dot-key","variant":"band"}}'
 elif [ "\$*" = "plugin configure status-hud@artekka-kits --values-stdin" ]; then
-  in="\$(cat)"; printf '%s\n' "\$in" > "$TMP/configured"; echo "acct=\${CLAUDE_CONFIG_DIR:-default}" >> "$TMP/accounts"
+  in="\$(cat)"; printf '%s\n' "\$in" > "$TMP/configured"; echo "acct=\${CLAUDE_CONFIG_DIR:-default}" >> "$TMP/accounts"; echo "Configuration saved. Restart Claude Code to apply it."
 else echo "unexpected: \$*" >> "$TMP/unexpected"; exit 9; fi
 EOF
 for t in explorer.exe wslpath open xdg-open; do printf '#!/usr/bin/env bash\necho "%s $*" >> "%s/opened"\n' "$t" "$TMP" > "$B/$t"; done
@@ -108,7 +108,7 @@ r="$(http POST "${url}apply" '{"dotMode":"project","hideItems":"history"}')"; ha
 has "served: saved for the default account" "acct=default" "$(cat "$TMP/accounts")"
 has "served: and for the other account" "acct=$TMP/acct 2" "$(cat "$TMP/accounts")"
 has "served: the choices" '"hideItems": "history"' "$(cat "$TMP/configured")"
-out="$(g wait 10)"; rc_is "wait: exit 0 after Done" 0 $?; has "wait: says what was saved" "Saved:" "$out"
+out="$(g wait 10)"; rc_is "wait: exit 0 after Done" 0 $?; has "wait: acknowledges the save" "Your HUD choices are saved." "$out"; hasnt "wait: no restart-everything line" "Restart Claude Code" "$out"
 sleep 1.5; r="$(http GET "$url" 2>&1)"; hasnt "served: stops after Done" "200 <!doctype" "$r"
 [ ! -e "$TMP/rt/hud-guide.url" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL the address file outlived the server"; }
 out="$(g wait 1)"; rc_is "wait: the last result again" 0 $?
@@ -123,13 +123,13 @@ kill "$(cat "$TMP/rt/hud-guide.pid")" 2>/dev/null; rm -f "$TMP/accounts" "$TMP/c
 out="$(g open --try)"; rc_is "open --try: exit 0" 0 $?; has "open --try: says try mode" "try mode" "$out"
 url="$(cat "$TMP/rt/hud-guide.url")"; has "open --try: the browser gets the try address" "${url}?try=1" "$(cat "$TMP/opened")"
 r="$(http GET "${url}?try=1")"; has "try: the page" "200 <!doctype html>" "$r"; has "try: the page has its banner" 'id="trybar"' "$r"
-r="$(http POST "${url}apply" '{"dotMode":"account","hideItems":"history"}')"; has "try: Done answers" '"ok": true' "$r"; has "try: says nothing was saved" "nothing saved" "$r"
+r="$(http POST "${url}apply" '{"dotMode":"account","hideItems":"history"}')"; has "try: Done answers" '"ok": true' "$r"; has "try: says nothing was saved" "nothing was saved" "$r"
 [ ! -e "$TMP/accounts" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL try mode reached configure"; }
-out="$(g wait 5)"; rc_is "try: wait confirms the Done" 0 $?; has "try: wait says what it would save" 'Done would save: {"dotMode": "account", "hideItems": "history"}' "$out"
+out="$(g wait 5)"; rc_is "try: wait confirms the Done" 0 $?; has "try: wait acknowledges it" "Try mode: your choices came through; nothing was saved." "$out"
 r="$(http POST "${url}apply" '{"dotMode":"account","hideItems":"nope"}')"; has "try: unknown items still refused" '"ok": false' "$r"
 sleep 1.5; r="$(http GET "$url")"; has "try: still open after Done" "200" "$r"
 kill "$(cat "$TMP/rt/hud-guide.pid")" 2>/dev/null
-out="$(g apply --try '{"dotMode":"project","hideItems":"history"}')"; rc_is "apply --try: exit 0" 0 $?; has "apply --try: says what it would save" '"hideItems": "history"' "$out"
+out="$(g apply --try '{"dotMode":"project","hideItems":"history"}')"; rc_is "apply --try: exit 0" 0 $?; has "apply --try: says nothing was saved" "nothing was saved" "$out"
 [ ! -e "$TMP/accounts" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL apply --try reached configure"; }
 out="$(g apply --try '{"hideItems":"nope"}')"; rc_is "apply --try: unknown id refused" 1 $?
 

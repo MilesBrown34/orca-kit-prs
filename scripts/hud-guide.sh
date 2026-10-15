@@ -120,8 +120,10 @@ for k, x in v.items():
         out[k] = x
     else: sys.exit("not a HUD choice: %s=%r" % (k, x))
 print(json.dumps(out))')" || exit 1
-    if [ -n "$dry" ]; then echo "Try mode, nothing saved. Done would save: $vals"; exit 0; fi
-    printf '%s' "$vals" | claude plugin configure "$PLUGIN" --values-stdin || { echo "hud-guide: claude plugin configure failed (its message is above)" >&2; exit 1; }
-    echo "Saved: $vals. The HUD redraws with it from each session's next start." ;;
+    # One short line either way: the choices are on the page, so it only acknowledges them.
+    if [ -n "$dry" ]; then echo "Try mode: your choices came through; nothing was saved."; exit 0; fi
+    # configure's own "restart Claude Code" line is shown only when it fails (open chats only need a restart to see it)
+    cout="$(printf '%s' "$vals" | claude plugin configure "$PLUGIN" --values-stdin 2>&1)" || { printf '%s\n' "$cout" >&2; echo "hud-guide: claude plugin configure failed (its message is above)" >&2; exit 1; }
+    echo "Your HUD choices are saved. New chats show them; open chats keep the old look until restarted." ;;
   *) usage ;;
 esac
