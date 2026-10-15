@@ -49,6 +49,21 @@ d = json.loads(re.search(r'const DATA = (\{.*?\});\n', open(sys.argv[1], encodin
 missing = [i['id'] for i in d['items'] if not i['at'] and i['id'] != 'disk2']
 sys.exit(1 if missing else 0) if not missing else (print('not placed:', missing), sys.exit(1))
 PY
+# With account dots the project key is not drawn: it gets no number there (a number on another item misleads),
+# while every other placed item keeps one, and no highlight crosses a box divider.
+python3 - "$P" <<'PY' && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL account-dot places are wrong"; }
+import json, re, sys
+d = json.loads(re.search(r'const DATA = (\{.*?\});\n', open(sys.argv[1], encoding='utf-8').read(), re.S).group(1))
+it = {i['id']: i for i in d['items']}
+ok = it['dot-key']['at'] and not it['dot-key']['atAccount']
+ok = ok and all(i['atAccount'] for i in d['items'] if i['at'] and i['id'] != 'dot-key')
+for mode, key in (('project', 'at'), ('account', 'atAccount')):
+    for i in d['items']:
+        for a in i[key]:
+            row = d[mode][a['row']]
+            if any(row[x][0] == '│' for x in range(a['from'] + 1, a['to'])): ok = False; print('crosses a divider:', mode, i['id'])
+sys.exit(0 if ok else 1)
+PY
 
 # open --file: a copy set to the current settings, opened in the browser as a file (Done = copy and paste).
 out="$(g open --file)"; rc_is "open --file: exit 0" 0 $?

@@ -55,6 +55,7 @@ h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
 .num { width: 24px; height: 24px; border-radius: 12px; background: #ffd33d; color: #111; font: 700 12px/24px system-ui; text-align: center; }
 .item.off .num { background: #6a727c; color: #e6e9ed; }
 .item.off .nm { text-decoration: line-through; color: var(--mut); }
+.item.absent { opacity: .5; }
 .nm { font-weight: 600; }
 .what { color: var(--mut); font-size: 13px; }
 .tag { display: inline-block; font-size: 11px; background: var(--chip); color: var(--mut); border-radius: 6px; padding: 0 6px; margin-left: 6px; font-weight: 500; }
@@ -158,13 +159,19 @@ function applyPreset(p) {
 }
 applyPreset(PRESET);
 const num = new Map(DATA.items.map((it, i) => [it.id, i + 1]));
-const owner = new Map(); // "row:col" -> item id
-for (const it of DATA.items) for (const a of it.at) for (let x = a.from; x < a.to; x++) { const k = a.row + ':' + x; if (!owner.has(k)) owner.set(k, it.id); }
+// Each item's place in the picture shown: with account dots the project key is not drawn, and items beside it move.
+const atOf = it => (state.dot === 'account' ? it.atAccount : it.at);
+function owners() {
+  const owner = new Map(); // "row:col" -> item id
+  for (const it of DATA.items) for (const a of atOf(it)) for (let x = a.from; x < a.to; x++) { const k = a.row + ':' + x; if (!owner.has(k)) owner.set(k, it.id); }
+  return owner;
+}
 
 const hud = document.getElementById('hud');
 function drawHud() {
   hud.textContent = '';
   const g = DATA[state.dot];
+  const owner = owners();
   g.forEach((row, y) => {
     const r = document.createElement('div'); r.className = 'r';
     row.forEach(([ch, fg, bg, bold], x) => {
@@ -178,9 +185,9 @@ function drawHud() {
   // Numbers left to right per row; one that would touch the number before it moves right of it.
   const lastRight = new Map();
   const ch = hud.querySelector('.c')?.getBoundingClientRect().width || 7;
-  const placed = DATA.items.filter(it => it.at[0]).sort((p, q) => p.at[0].row - q.at[0].row || p.at[0].from - q.at[0].from);
+  const placed = DATA.items.filter(it => atOf(it)[0]).sort((p, q) => atOf(p)[0].row - atOf(q)[0].row || atOf(p)[0].from - atOf(q)[0].from);
   for (const it of placed) {
-    const a = it.at[0];
+    const a = atOf(it)[0];
     const b = document.createElement('button'); b.className = 'badge' + (state.off.has(it.id) ? ' off' : '');
     b.textContent = num.get(it.id);
     b.setAttribute('aria-label', num.get(it.id) + ': ' + it.name + (state.off.has(it.id) ? ', removed' : ', kept') + '. Go to it in the list');
@@ -190,7 +197,7 @@ function drawHud() {
     const on = () => { hot(it.id, true); showTip(it, b); }, off = () => { hot(it.id, false); hideTip(); };
     b.onmouseenter = on; b.onmouseleave = off; b.onfocus = on; b.onblur = off;
     hud.appendChild(b);
-    for (const span of it.at) {
+    for (const span of atOf(it)) {
       const h = document.createElement('div'); h.className = 'hl'; h.dataset.id = it.id;
       h.style.left = (span.from * ch - 4) + 'px'; h.style.width = ((span.to - span.from) * ch + 8) + 'px'; h.style.top = (span.row * 30 + 7) + 'px';
       hud.appendChild(h);
@@ -246,13 +253,13 @@ function drawList() {
     const h = document.createElement('h2'); h.textContent = area; sec.appendChild(h);
     for (const it of items) {
       const off = state.off.has(it.id);
-      const row = document.createElement('div'); row.className = 'item' + (off ? ' off' : ''); row.id = 'item-' + it.id;
+      const row = document.createElement('div'); row.className = 'item' + (off ? ' off' : '') + (atOf(it).length ? '' : ' absent'); row.id = 'item-' + it.id;
       row.onmouseenter = () => hot(it.id, true); row.onmouseleave = () => hot(it.id, false);
       const n = document.createElement('div'); n.className = 'num'; n.textContent = num.get(it.id);
       const body = document.createElement('div');
       const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = it.name;
       nm.appendChild(tagFor(it));
-      if (!it.at.length) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'not in this picture'; nm.appendChild(t); }
+      if (!atOf(it).length) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = it.id === 'dot-key' && state.dot === 'account' ? 'only with project dots' : 'not in this picture'; nm.appendChild(t); }
       body.append(nm);
       const qa = document.createElement('div'); qa.className = 'qas'; qa.append(...answers(it));
       const seg = document.createElement('div'); seg.className = 'seg keeprm'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', it.name);

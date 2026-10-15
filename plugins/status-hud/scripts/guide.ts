@@ -117,35 +117,55 @@ function locate(full: Cell[][], hidden: Cell[][]): { row: number; from: number; 
 
 const METERS = ['cpu', 'ram', 'win', 'gpu', 'vram', 'disk', 'disk2']
 
-export function guideData(): { cols: number; account: Cell[][]; project: Cell[][]; items: (typeof ITEMS[number] & { at: { row: number; from: number; to: number }[] })[] } {
-  const project = draw({ dotMode: 'project' })
+type At = { row: number; from: number; to: number }[]
+
+/** Where each item sits in the picture for one dot choice: an item that choice does not draw (the project key with account dots) has no place. */
+function place(dotMode: 'account' | 'project'): Map<string, At> {
+  const full = draw({ dotMode })
+  const out = new Map<string, At>()
+  for (const it of ITEMS) {
+    // The project key goes with the dots, so the dots are found with the key already off; the second column
+    // also changes the title's count, so its place is below the title.
+    const base = it.id === 'dot' ? draw({ dotMode, hideItems: 'dot-key' }) : full
+    let at = locate(base, draw({ dotMode, hideItems: it.id === 'dot' ? 'dot,dot-key' : it.id }))
+    if (it.id === 'column2') at = at.filter(a => a.row > 0)
+    // Rows below a removed meter move up, and a removed chip moves the rest: keep the rows that are the
+    // item's own. Per-session items touch every session row; anything else is one row.
+    const perRow = ['dot', 'bar', 'tokens', 'state', 'activity'].includes(it.id)
+    if (!perRow) at = at.slice(0, 1)
+    else at = at.filter(a => a.row >= 2 && a.row <= 6)
+    // A meter owns its whole row in the machine box: label, bar and reading (the rows below only move up, so the
+    // compare above finds just the label). The history graphs start at column 34.
+    if (METERS.includes(it.id) && at[0]) {
+      const row = full[at[0].row] ?? []
+      // up to the history graphs when this row has one, else up to the box's divider
+      const divider = row.findIndex((c, x) => x > 2 && c[0] === '│')
+      let to = (row[34]?.[0] ?? ' ') !== ' ' ? 33 : (divider > 0 ? divider : row.length)
+      while (to > 2 && (row[to - 1]?.[0] ?? ' ') === ' ') to--
+      at = [{ row: at[0].row, from: 2, to }]
+    }
+    // A span never crosses a box divider: past it is the next box (a compare that found no realignment runs on).
+    at = at.map(a => {
+      const row = full[a.row] ?? []
+      let to = a.to
+      for (let x = a.from + 1; x < a.to; x++) if (row[x]?.[0] === '│') { to = x; break }
+      if (to < a.to) while (to > a.from + 1 && (row[to - 1]?.[0] ?? ' ') === ' ') to--
+      return { ...a, to }
+    })
+    out.set(it.id, at)
+  }
+  return out
+}
+
+/** `at` is the item's place with project dots, `atAccount` with account dots: the page uses the one for the picture it shows. */
+export function guideData(): { cols: number; account: Cell[][]; project: Cell[][]; items: (typeof ITEMS[number] & { at: At; atAccount: At })[] } {
+  const project = place('project')
+  const account = place('account')
   return {
     cols: COLS,
     account: draw({ dotMode: 'account' }),
-    project,
-    items: ITEMS.map(it => {
-      // The project key goes with the dots, so the dots are found with the key already off; the second column
-      // also changes the title's count, so its place is below the title.
-      const base = it.id === 'dot' ? draw({ dotMode: 'project', hideItems: 'dot-key' }) : project
-      let at = locate(base, draw({ dotMode: 'project', hideItems: it.id === 'dot' ? 'dot,dot-key' : it.id }))
-      if (it.id === 'column2') at = at.filter(a => a.row > 0)
-      // Rows below a removed meter move up, and a removed chip moves the rest: keep the rows that are the
-      // item's own. Per-session items touch every session row; anything else is one row.
-      const perRow = ['dot', 'bar', 'tokens', 'state', 'activity'].includes(it.id)
-      if (!perRow) at = at.slice(0, 1)
-      else at = at.filter(a => a.row >= 2 && a.row <= 6)
-      // A meter owns its whole row in the machine box: label, bar and reading (the rows below only move up, so the
-      // compare above finds just the label). The history graphs start at column 34.
-      if (METERS.includes(it.id) && at[0]) {
-        const row = project[at[0].row] ?? []
-        // up to the history graphs when this row has one, else up to the box's divider
-        const divider = row.findIndex((c, x) => x > 2 && c[0] === '│')
-        let to = (row[34]?.[0] ?? ' ') !== ' ' ? 33 : (divider > 0 ? divider : row.length)
-        while (to > 2 && (row[to - 1]?.[0] ?? ' ') === ' ') to--
-        at = [{ row: at[0].row, from: 2, to }]
-      }
-      return { ...it, at }
-    }),
+    project: draw({ dotMode: 'project' }),
+    items: ITEMS.map(it => ({ ...it, at: project.get(it.id) ?? [], atAccount: account.get(it.id) ?? [] })),
   }
 }
 
