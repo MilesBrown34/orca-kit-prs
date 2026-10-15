@@ -102,7 +102,7 @@ h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
       </div>
     </div>
     <div class="hudwrap"><div class="hud" id="hud" aria-label="Sample status HUD with numbered items"></div></div>
-    <p class="hint" style="margin:8px 0 0">Point at a number to see what it is; click it to jump to it in the list below, where you keep or remove it. Scroll sideways if the picture is wider than your window.</p>
+    <p class="hint" style="margin:8px 0 0">Point at a number to see what it is; click it to jump to it in the list below, where you keep or remove it. A <b>grey, crossed-out number</b> is an item removed in your current settings: press Keep in the list to bring it back. Scroll sideways if the picture is wider than your window.</p>
   </div>
 
   <div class="legend"><span>Every item, and when it appears:</span>
@@ -215,14 +215,14 @@ function answers(it) {
 const tip = document.getElementById('tip');
 function showTip(it, el) {
   tip.textContent = '';
-  const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = num.get(it.id) + '. ' + it.name + (state.off.has(it.id) ? ' (removed)' : '');
+  const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = num.get(it.id) + '. ' + it.name + (state.off.has(it.id) ? ' (removed now: press Keep in the list to bring it back)' : '');
   const tg = tagFor(it); tg.style.marginLeft = '0';
   tip.append(nm, tg, ...answers(it));
   tip.style.display = 'block';
   // Clear of the item: below its lowest box (and its number), else above its highest; never on top of it.
   const rs = [el, ...hud.querySelectorAll('.hl[data-id="' + it.id + '"]')].map(e => e.getBoundingClientRect());
   const box = { left: Math.min(...rs.map(r => r.left)), top: Math.min(...rs.map(r => r.top)), bottom: Math.max(...rs.map(r => r.bottom)) };
-  const tw = tip.offsetWidth, th = tip.offsetHeight, gap = 12;
+  const tw = tip.offsetWidth, th = tip.offsetHeight, gap = 30;
   const x = Math.min(Math.max(8, box.left), innerWidth - tw - 8);
   const y = box.bottom + gap + th <= innerHeight - 70 ? box.bottom + gap : Math.max(8, box.top - th - gap);
   tip.style.left = x + 'px'; tip.style.top = y + 'px';

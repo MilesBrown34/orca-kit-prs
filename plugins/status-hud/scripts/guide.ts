@@ -115,6 +115,8 @@ function locate(full: Cell[][], hidden: Cell[][]): { row: number; from: number; 
   return out
 }
 
+const METERS = ['cpu', 'ram', 'win', 'gpu', 'vram', 'disk', 'disk2']
+
 export function guideData(): { cols: number; account: Cell[][]; project: Cell[][]; items: (typeof ITEMS[number] & { at: { row: number; from: number; to: number }[] })[] } {
   const project = draw({ dotMode: 'project' })
   return {
@@ -132,6 +134,16 @@ export function guideData(): { cols: number; account: Cell[][]; project: Cell[][
       const perRow = ['dot', 'bar', 'tokens', 'state', 'activity'].includes(it.id)
       if (!perRow) at = at.slice(0, 1)
       else at = at.filter(a => a.row >= 2 && a.row <= 6)
+      // A meter owns its whole row in the machine box: label, bar and reading (the rows below only move up, so the
+      // compare above finds just the label). The history graphs start at column 34.
+      if (METERS.includes(it.id) && at[0]) {
+        const row = project[at[0].row] ?? []
+        // up to the history graphs when this row has one, else up to the box's divider
+        const divider = row.findIndex((c, x) => x > 2 && c[0] === '│')
+        let to = (row[34]?.[0] ?? ' ') !== ' ' ? 33 : (divider > 0 ? divider : row.length)
+        while (to > 2 && (row[to - 1]?.[0] ?? ' ') === ' ') to--
+        at = [{ row: at[0].row, from: 2, to }]
+      }
       return { ...it, at }
     }),
   }
