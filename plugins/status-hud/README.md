@@ -124,7 +124,7 @@ The Quiet Mode chip is hidden unless a flag file or status command is configured
 
 ## Items
 
-Every drawn item has an id for `hideItems`. Unknown ids are ignored. The setup page (`docs/status-hud-guide.html` in the kit, opened set to your current settings by `bash scripts/hud-guide.sh open`) shows each one numbered on a picture drawn by this plugin's own layout code: keep or remove each, pick the dot mode, and copy one line that `bash scripts/hud-guide.sh apply '<line>'` saves (only `dotMode` and known `hideItems` ids). After a layout change, rebuild the page with `bash scripts/hud-guide.sh build` (node 22.18 or later; `tests/hud-guide.test.sh` fails while it is out of date).
+Every drawn item has an id for `hideItems`. Unknown ids are ignored. The setup page (`docs/status-hud-guide.html` in the kit, opened set to your current settings by `bash scripts/hud-guide.sh open`) shows each one numbered on a picture drawn by this plugin's own layout code: point at a number for a pop-up, click it to jump to the item in the list, keep or remove each, pick the dot mode, and press Done. The page is served to this machine only (`scripts/hud-guide-server.py`), so Done saves through `bash scripts/hud-guide.sh apply` (only `dotMode` and known `hideItems` ids) for each `--account` it was opened for; `open --file` opens it as a plain file instead, where Copy my choices gives one line to paste to Claude. After a layout change, rebuild the page with `bash scripts/hud-guide.sh build` (node 22.18 or later; `tests/hud-guide.test.sh` fails while it is out of date).
 
 | Area | Ids |
 |---|---|

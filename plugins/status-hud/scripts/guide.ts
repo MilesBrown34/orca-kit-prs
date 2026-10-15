@@ -8,20 +8,22 @@ import type { Heartbeat, Snapshot } from '../types'
 
 export const COLS = 180
 
-/** Every item, in the README's order, with a plain name and what it shows. `when` = only drawn sometimes. */
-export const ITEMS: { id: string; area: string; name: string; what: string; when?: string }[] = [
+/** Every item, in the README's order, with a plain name and what it shows. `when` = only drawn sometimes;
+ * `shows` = how it comes to be drawn: 'auto' by itself when `when` applies, 'setting' only after the user turns
+ * something on (`when` says what), absent = shown by default. */
+export const ITEMS: { id: string; area: string; name: string; what: string; when?: string; shows?: 'auto' | 'setting' }[] = [
   { id: 'host-title', area: 'Machine', name: 'Machine title', what: 'The heading of the machine box: how many processor threads this computer has.' },
   { id: 'cpu', area: 'Machine', name: 'CPU meter', what: 'How busy the processor is: the 1-minute load against the number of threads. Turns red near full.' },
   { id: 'history', area: 'Machine', name: 'History graphs', what: 'The small graphs to the right of the meters: the last few minutes of each reading.' },
   { id: 'ram', area: 'Machine', name: 'Memory (RAM)', what: 'Memory in use out of the total.' },
-  { id: 'win', area: 'Machine', name: 'Windows memory limit', what: 'On WSL only: how much of the memory Windows can promise is promised. At 100% Windows stops WSL, and every session with it.', when: 'WSL only' },
-  { id: 'gpu', area: 'Machine', name: 'Graphics card', what: 'How busy the graphics card is, and its temperature.', when: 'with an NVIDIA card' },
-  { id: 'vram', area: 'Machine', name: 'Graphics memory', what: 'Memory on the graphics card in use out of the total.', when: 'with an NVIDIA card' },
+  { id: 'win', area: 'Machine', name: 'Windows memory limit', what: 'On WSL only: how much of the memory Windows can promise is promised. At 100% Windows stops WSL, and every session with it.', when: 'WSL only', shows: 'auto' },
+  { id: 'gpu', area: 'Machine', name: 'Graphics card', what: 'How busy the graphics card is, and its temperature.', when: 'with an NVIDIA card', shows: 'auto' },
+  { id: 'vram', area: 'Machine', name: 'Graphics memory', what: 'Memory on the graphics card in use out of the total.', when: 'with an NVIDIA card', shows: 'auto' },
   { id: 'disk', area: 'Machine', name: 'Main disk', what: 'Space used on the first drive in the mounts setting.' },
-  { id: 'disk2', area: 'Machine', name: 'Other disks', what: 'Space used on any further drive in the mounts setting, when there is room for it.', when: 'with a second mount' },
+  { id: 'disk2', area: 'Machine', name: 'Other disks', what: 'Space used on any further drive in the mounts setting, when there is room for it.', when: 'add a second drive to the mounts setting', shows: 'setting' },
   { id: 'sessions-title', area: 'Sessions', name: 'Sessions title', what: 'The heading of the sessions box: how many Claude sessions are running, and across how many accounts or projects.' },
   { id: 'context-key', area: 'Sessions', name: 'Context colour key', what: 'Explains the bar colours: green is fine, amber is filling up, red is past the point where a session should report.' },
-  { id: 'dot-key', area: 'Sessions', name: 'Project key', what: 'With project dots: which colour is which project.', when: 'project dots' },
+  { id: 'dot-key', area: 'Sessions', name: 'Project key', what: 'With project dots: which colour is which project.', when: 'choose project dots above', shows: 'setting' },
   { id: 'state-key', area: 'Sessions', name: 'Busy/idle key', what: 'Explains the mark after each session: ▘ busy (it turns while working), $ running a command, ○ idle.' },
   { id: 'dot', area: 'Sessions', name: 'Session dot', what: 'A coloured dot per session: its Claude account, or its project (the colour of its terminal tab when the launcher recorded one).' },
   { id: 'model', area: 'Sessions', name: 'Model badge', what: 'Which model the session runs: OPS (Opus, yellow), SNT (Sonnet, blue), HKU (Haiku, green), GEM (Gemini, purple).' },
@@ -29,11 +31,11 @@ export const ITEMS: { id: string; area: string; name: string; what: string; when
   { id: 'tokens', area: 'Sessions', name: 'Context number', what: 'The same fill as a number of tokens, e.g. 230K.' },
   { id: 'state', area: 'Sessions', name: 'Busy/idle mark', what: 'Whether the session is working (▘, turning), running a command ($), or waiting (○).' },
   { id: 'activity', area: 'Sessions', name: 'Last action', what: 'What the session did last.' },
-  { id: 'column2', area: 'Sessions', name: 'Second column', what: 'With more than five sessions on a wide screen, a second column of rows (otherwise "+N more").', when: 'more than five sessions' },
+  { id: 'column2', area: 'Sessions', name: 'Second column', what: 'With more than five sessions on a wide screen, a second column of rows (otherwise "+N more").', when: 'more than five sessions', shows: 'auto' },
   { id: 'frame-title', area: 'Sessions', name: 'STATUS HUD label', what: 'The name on the top-right corner of the frame.' },
-  { id: 'work-mode', area: 'Bottom chips', name: 'Work/Quiet mode', what: 'A button: Quiet mode holds new test runs so the machine stays responsive; Work mode is normal.', when: 'with the kit\'s quiet-mode script' },
+  { id: 'work-mode', area: 'Bottom chips', name: 'Work/Quiet mode', what: 'A button: Quiet mode holds new test runs so the machine stays responsive; Work mode is normal.', when: 'in projects set up by the kit', shows: 'auto' },
   { id: 'count', area: 'Bottom chips', name: 'Session count', what: 'How many sessions are reporting.' },
-  { id: 'warnings', area: 'Bottom chips', name: 'Alerts', what: 'Chips at the right, most urgent first: Windows memory, a session past the report mark, a high load.', when: 'when something needs you' },
+  { id: 'warnings', area: 'Bottom chips', name: 'Alerts', what: 'Chips at the right, most urgent first: Windows memory, a session past the report mark, a high load.', when: 'when something needs you', shows: 'auto' },
 ]
 
 const S = (name: string, k: number, state: Heartbeat['state'], project: string, color: string, account: number, activity: string): Heartbeat =>

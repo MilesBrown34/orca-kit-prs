@@ -80,6 +80,7 @@ Scaffold a repo for the seat + siblings workflow. Sources: `${CLAUDE_PLUGIN_ROOT
      SEAT=$(sed -nE 's/^[[:space:]]+seat:[[:space:]]*([^[:space:]#]+).*/\1/p' docs/orchestration/ORCHESTRATION.md | head -1)
      QF="${KIT_RUNTIME_DIR:-$HOME/.orchestration-kit/runtime}/quiet-mode"
      VALS=$(printf '{"showForNames":"%s","quietModeFlagFile":"%s","quietModeOnCmd":"bash scripts/quiet-mode.sh on","quietModeOffCmd":"bash scripts/quiet-mode.sh off"}' "${SEAT:-Orca}" "$QF")
+     ACCTS=()
      for D in default "$HOME"/.claude-acct*; do
        # an extra account counts when logged in; macOS keeps logins in the Keychain, so there every dir counts
        if [ "$D" = default ]; then unset CLAUDE_CONFIG_DIR; SJ="$HOME/.claude/settings.json"; WHO="the default account"
@@ -95,14 +96,16 @@ Scaffold a repo for the seat + siblings workflow. Sources: `${CLAUDE_PLUGIN_ROOT
        elif ! printf '%s' "$VALS" | claude plugin configure status-hud@artekka-kits --values-stdin; then
          echo "status HUD installed for $WHO, but configuring it FAILED (claude's own message is above): the plugin is installed and runs with its defaults (its default showForNames is the seat name, so it draws only in the seat's window; set showForNames to your seat). Tell the human, and offer to retry: printf '%s' '$VALS' | claude plugin configure status-hud@artekka-kits --values-stdin${CLAUDE_CONFIG_DIR:+ (with CLAUDE_CONFIG_DIR=$CLAUDE_CONFIG_DIR)}"
        else
-         echo "status HUD installed for $WHO (shown in: ${SEAT:-Orca})"
+         echo "status HUD installed for $WHO (shown in: ${SEAT:-Orca})"; ACCTS+=(--account "$D")
        fi
      done
      unset CLAUDE_CONFIG_DIR
+     # the setup page: opens in the browser, set to these settings; its Done saves for every account above
+     [ ${#ACCTS[@]} -eq 0 ] || bash "${CLAUDE_PLUGIN_ROOT}/scripts/hud-guide.sh" open "${ACCTS[@]}"
    fi
    ```
    On Yes, commit `.claude/settings.json` if the install changed it (explicit path), and tell the human: "The HUD appears in the seat's window from its next start; `/hud band`, `/hud pane` or `/hud off` switch it, `/hud quiet` toggles quiet mode."
-   Then offer the setup page, in plain text, one line: "Want to pick what the HUD shows? A page opens with every item numbered on a picture: keep or remove each, choose what the dots mean, then press Copy my choices and paste the line here." On Yes: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hud-guide.sh" open` (it says where the page is when no browser opens). When the human pastes a line starting `Apply my status HUD choices`, run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hud-guide.sh" apply '<the whole line>'` once per account the HUD was installed for (`CLAUDE_CONFIG_DIR=<dir>` before it for an extra account), and say what it printed. The same line pasted in any later session means the same thing.
+   The block ends by opening the HUD setup page. Tell the human, one line: "A page opened in your browser to pick what the HUD shows: point at a number to see what it is, keep or remove each item, then press Done (the address is above if no browser opened)." Then run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hud-guide.sh" wait` in the background and go on with the next step; when it ends, say in one line what it printed (exit 0 saved, 2 no Done in time: the page can be opened again any time with `hud-guide.sh open`). If the page could only open as a file (open says so) and the human pastes a line starting `Apply my status HUD choices`, run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hud-guide.sh" apply '<the whole line>'` once per account the HUD was installed for (`CLAUDE_CONFIG_DIR=<dir>` before it for an extra account), and say what it printed. The same line pasted in any later session means the same thing.
 10. **Offer the tour (last thing, whatever the HUD answer was)** — ask in plain text, one line: "Want the tour? `HOW-IT-WORKS.md` explains the whole loop in one diagram: the seat, the board, builders in their own worktrees, independent checks, trains, and every setting you can change." On Yes, give the link `https://github.com/Artekka/orcastration-kit/blob/main/HOW-IT-WORKS.md` (the same page ships as `docs/how-it-works.html` in the plugin) and summarize the loop in five lines. On No, say it stays linked from the README and `docs/GETTING-STARTED.md`.
 
 ## Rules

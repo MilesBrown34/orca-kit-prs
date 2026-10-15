@@ -106,6 +106,10 @@ workflow; upgrade it, get the newly distilled lessons.
 
 **What the WORK/QUIET chip does and when you'll see it:** The chip is a switch for the kit's quiet mode. QUIET holds every NEW test/gate run started through `scripts/gate-throttle.sh` while you use the machine yourself; runs already going finish, and WORK lets new ones start normally. It only helps if your team runs its gate through that throttle, so the chip appears only when `scripts/quiet-mode.sh` exists in the session's directory (or quiet mode is already on). No throttle, no chip. If a press fails, the chip turns red and says `failed` for a minute, and the toast says why. `/hud help` repeats this, and `quietModeRequiresFile` changes the file it looks for (empty always shows the chip).
 
+**Choosing what the HUD shows:** when kit-init installs the HUD, it opens a setup page in your browser. Every item is numbered on a picture of the HUD: point at a number to see what it is and when it appears, click it to jump to it in the list, keep or remove each, then press **Done** and the choices are saved. Ask Claude to open it again any time (`bash scripts/hud-guide.sh open`).
+
+![The status HUD setup page: the HUD drawn with numbered items, one pop-up open, and the list of items with Keep and Remove](docs/images/status-hud-setup.png)
+
 **Generic vs project-specific:** the kit never hardcodes a gate or deploy command.
 Project specifics live in the consuming repo's `docs/orchestration/ORCHESTRATION.md`
 (created by kit-init); every kit skill reads it first. That split is what makes lessons
