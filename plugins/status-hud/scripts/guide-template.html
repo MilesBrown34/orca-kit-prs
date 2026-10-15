@@ -41,7 +41,9 @@ h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
 .hud .r { height: 30px; padding-top: 10px; }
 .hud .c { display: inline-block; width: 1ch; text-align: center; overflow: visible; transition: opacity .15s; }
 .hud .c.off { opacity: .12; }
-.hud .c.hot { outline: 1px solid #ffd33d; outline-offset: -1px; }
+.hl { position: absolute; height: 24px; border: 2px solid #ffd33d; border-radius: 6px; background: rgba(255, 211, 61, .14);
+  box-shadow: 0 0 0 3px rgba(255, 211, 61, .18); pointer-events: none; z-index: 1; display: none; }
+.hl.show { display: block; }
 .badge { position: absolute; transform: translateX(-2px); min-width: 15px; height: 13px; padding: 0 3px; border: 0; border-radius: 7px; background: #ffd33d; color: #111;
   font: 700 9px/13px system-ui, sans-serif; text-align: center; cursor: pointer; box-shadow: 0 0 0 2px var(--hud); z-index: 2; }
 .badge.off { background: #6a727c; color: #e6e9ed; text-decoration: line-through; }
@@ -73,10 +75,13 @@ h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
 :root[data-theme="dark"] .tag.set { background: #3d2e00; color: #ffd98a; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 0 0 14px; font-size: 13px; color: var(--mut); }
 .legend .tag { margin-left: 0; }
-.tip { position: fixed; z-index: 10; max-width: 320px; background: var(--card); color: var(--tx); border: 1px solid var(--line); border-radius: 10px;
+.tip { position: fixed; z-index: 10; max-width: 380px; background: var(--card); color: var(--tx); border: 1px solid var(--line); border-radius: 10px;
   padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.25); font-size: 13px; pointer-events: none; display: none; }
-.tip .nm { margin-bottom: 2px; }
-.tip .what { margin-top: 4px; }
+.tip .nm { margin-bottom: 4px; }
+.qas { grid-column: 2 / 4; margin-top: -6px; }
+.qa { margin-top: 6px; font-size: 13px; color: var(--mut); }
+.qa b { display: block; color: var(--tx); font-weight: 600; font-size: 12px; }
+.tip .qa { color: var(--tx); opacity: .9; }
 .item { scroll-margin: 90px 0 110px; }
 .item.flash { animation: flash 1.6s ease-out; }
 @keyframes flash { 0%, 30% { background: #ffd33d55; box-shadow: 0 0 0 2px #ffd33d; } 100% { background: transparent; box-shadow: none; } }
@@ -185,23 +190,41 @@ function drawHud() {
     const on = () => { hot(it.id, true); showTip(it, b); }, off = () => { hot(it.id, false); hideTip(); };
     b.onmouseenter = on; b.onmouseleave = off; b.onfocus = on; b.onblur = off;
     hud.appendChild(b);
+    for (const span of it.at) {
+      const h = document.createElement('div'); h.className = 'hl'; h.dataset.id = it.id;
+      h.style.left = (span.from * ch - 4) + 'px'; h.style.width = ((span.to - span.from) * ch + 8) + 'px'; h.style.top = (span.row * 30 + 7) + 'px';
+      hud.appendChild(h);
+    }
     const left = Math.max(a.from * ch, (lastRight.get(a.row) ?? -99) + 3);
     b.style.left = left + 'px';
     lastRight.set(a.row, left + b.getBoundingClientRect().width);
   }
 }
-function hot(id, on) { hud.querySelectorAll('.c[data-id="' + id + '"]').forEach(c => c.classList.toggle('hot', on)); }
+function hot(id, on) { hud.querySelectorAll('.hl[data-id="' + id + '"]').forEach(h => h.classList.toggle('show', on)); }
+// The three answers every item gives: what it shows, when you see it, and whether you turn it on.
+function control(it) {
+  if (it.shows === 'setting') return (it.turnOn || 'Turn on: ' + it.when + '.') + ' Then it shows; remove it here to hide it even so.';
+  if (it.shows === 'auto') return 'Nothing to turn on: it appears by itself when that applies. Remove it here if you never want it.';
+  return 'On by default. Remove it here to hide it.';
+}
+function answers(it) {
+  return [['What it shows', it.what], ['When you see it', it.seen || it.when || 'All the time.'], ['Do I turn it on?', control(it)]].map(([q, a]) => {
+    const d = document.createElement('div'); d.className = 'qa'; const b = document.createElement('b'); b.textContent = q; d.append(b, a); return d;
+  });
+}
 const tip = document.getElementById('tip');
 function showTip(it, el) {
   tip.textContent = '';
   const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = num.get(it.id) + '. ' + it.name + (state.off.has(it.id) ? ' (removed)' : '');
-  const w = document.createElement('div'); w.className = 'what'; w.textContent = it.what;
-  tip.append(nm, tagFor(it), w);
-  tip.firstChild.nextSibling.style.marginLeft = '0';
+  const tg = tagFor(it); tg.style.marginLeft = '0';
+  tip.append(nm, tg, ...answers(it));
   tip.style.display = 'block';
-  const r = el.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
-  const x = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), innerWidth - tw - 8);
-  const y = r.bottom + 8 + th < innerHeight ? r.bottom + 8 : Math.max(8, r.top - th - 8);
+  // Clear of the item: below its lowest box (and its number), else above its highest; never on top of it.
+  const rs = [el, ...hud.querySelectorAll('.hl[data-id="' + it.id + '"]')].map(e => e.getBoundingClientRect());
+  const box = { left: Math.min(...rs.map(r => r.left)), top: Math.min(...rs.map(r => r.top)), bottom: Math.max(...rs.map(r => r.bottom)) };
+  const tw = tip.offsetWidth, th = tip.offsetHeight, gap = 12;
+  const x = Math.min(Math.max(8, box.left), innerWidth - tw - 8);
+  const y = box.bottom + gap + th <= innerHeight - 70 ? box.bottom + gap : Math.max(8, box.top - th - gap);
   tip.style.left = x + 'px'; tip.style.top = y + 'px';
 }
 function hideTip() { tip.style.display = 'none'; }
@@ -230,8 +253,8 @@ function drawList() {
       const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = it.name;
       nm.appendChild(tagFor(it));
       if (!it.at.length) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'not in this picture'; nm.appendChild(t); }
-      const w = document.createElement('div'); w.className = 'what'; w.textContent = it.what;
-      body.append(nm, w);
+      body.append(nm);
+      const qa = document.createElement('div'); qa.className = 'qas'; qa.append(...answers(it));
       const seg = document.createElement('div'); seg.className = 'seg keeprm'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', it.name);
       for (const [v, label] of [['keep', 'Keep'], ['rm', 'Remove']]) {
         const b = document.createElement('button'); b.className = v; b.textContent = label;
@@ -239,7 +262,7 @@ function drawList() {
         b.onclick = () => { if ((v === 'rm') !== state.off.has(it.id)) toggle(it.id); };
         seg.appendChild(b);
       }
-      row.append(n, body, seg); sec.appendChild(row);
+      row.append(n, body, seg, qa); sec.appendChild(row);
     }
     areas.appendChild(sec);
   }
