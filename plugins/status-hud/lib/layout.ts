@@ -86,7 +86,7 @@ export function meters(v: View, max: number): Meter[] {
   const lv = loadLevel(host.load[0], host.threads, v.cfg)
   const out: Meter[] = []
   const cpuRed = v.cfg.cpuRedLoad > 0 ? v.cfg.cpuRedLoad : host.threads * 0.9
-  out.push({ label: 'CPU', f: host.load[0] / (cpuRed / 0.9 || 1), fg: LV[lv], text: `${lpad(host.load[0].toFixed(1), 4)}/${host.threads}t`, textFg: LV[lv], mark: -1, hist: { d: host.hist.load, lo: 0, hi: Math.max(host.threads, 1) } })
+  out.push({ label: 'CPU', f: host.load[0] / (cpuRed / 0.9 || 1), fg: LV[lv], text: host.cpuTemp ? `${lpad(host.load[0].toFixed(1), 4)} ${Math.round(host.cpuTemp.c)}°C` : `${lpad(host.load[0].toFixed(1), 4)}/${host.threads}t`, textFg: LV[lv], mark: -1, hist: { d: host.hist.load, lo: 0, hi: Math.max(host.threads, 1) } })
   out.push({ label: 'RAM', f: host.ramUsedGb / host.ramTotalGb, fg: C.cyan, text: `${gb(host.ramUsedGb)}/${gb(host.ramTotalGb, 0)}G`, textFg: C.tx, mark: -1, hist: { d: host.hist.ram, lo: 0, hi: host.ramTotalGb } })
   if (host.commit) {
     const cl = commitLevel(host.commit.usedPct, v.cfg)

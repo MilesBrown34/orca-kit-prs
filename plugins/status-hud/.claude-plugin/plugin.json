@@ -60,6 +60,18 @@
       "description": "Minimum seconds between Windows commit readings.",
       "default": 30
     },
+    "cpuTempCmd": {
+      "type": "string",
+      "title": "CPU temperature command",
+      "description": "Shell command that prints the CPU temperature in °C. The default reads Linux's own sensor (coretemp, k10temp) and, on WSL, LibreHardwareMonitor's readings on Windows (it must be running; WSL has no CPU sensor of its own). Empty, or no reading, keeps the plain load text.",
+      "default": "for h in /sys/class/hwmon/hwmon*; do case \"$(cat \"$h/name\" 2>/dev/null)\" in coretemp|k10temp|zenpower) echo $(( $(cat \"$h/temp1_input\") / 1000 )); exit 0;; esac; done; P=/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe; [ -x \"$P\" ] || P=powershell.exe; \"$P\" -NoProfile -Command '$s=Get-CimInstance -Namespace root/LibreHardwareMonitor -ClassName Sensor -ErrorAction Stop | ? { $_.SensorType -eq \"Temperature\" -and $_.Identifier -match \"cpu\" -and $_.Name -notmatch \"Distance\" }; foreach ($n in \"CPU Package\",\"Core (Tctl/Tdie)\",\"Core Max\") { $m=$s | ? Name -eq $n | select -First 1; if ($m) { [math]::Round($m.Value); exit } }; [math]::Round(($s | measure Value -Maximum).Maximum)'"
+    },
+    "cpuTempSeconds": {
+      "type": "number",
+      "title": "CPU temperature seconds",
+      "description": "Minimum seconds between CPU temperature readings.",
+      "default": 15
+    },
     "mounts": {
       "type": "string",
       "title": "Disk mounts",

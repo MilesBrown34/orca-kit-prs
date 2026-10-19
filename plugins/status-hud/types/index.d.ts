@@ -24,6 +24,8 @@ export type Host = {
   disks: { mount: string; usedGb: number; totalGb: number }[]
   gpu: { util: number; vramUsedGb: number; vramTotalGb: number; tempC: number } | null
   commit: { usedPct: number; limitGb: number; usedGb: number; at: number } | null
+  /** CPU temperature from cpuTempCmd and when it was read; absent or null when there is none. */
+  cpuTemp?: { c: number; at: number } | null
   hist: { load: number[]; ram: number[]; gpu: number[] }
 }
 

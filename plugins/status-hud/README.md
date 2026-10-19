@@ -37,6 +37,7 @@ Every session that runs the mod reports itself and reads everyone else, through 
 - A session is **gone** after `staleSeconds` without a heartbeat and its file is deleted at twice that. A clean exit deletes its own file.
 - **One writer for host metrics.** A session that finds `host.json` stale takes a `mkdir` lock (atomic), runs one shell script for `/proc/loadavg`, `nproc`, `/proc/meminfo`, `df` and `nvidia-smi`, writes the result via tmp file and `mv`, and releases. The others skip. The lock holds an owner token and its start time; only its owner releases it, and a lock older than 60 s (longer than the longest live hold, 25 s) is a dead writer's: one session wins an atomic rename of it and deletes it. Orphaned `.tmp` files are swept after `staleSeconds`.
 - The Windows commit reading runs `commitCmd` (about a second) at most every `commitSeconds`.
+- The CPU temperature runs `cpuTempCmd` at most every `cpuTempSeconds`; with a reading the CPU line shows `load  temp°C` (the thread count is in the HOST title).
 - **Drawing reads state only.** A timer fills the state from the files; the band and pane never shell out or touch the disk when they draw.
 - A session's name comes from its `--name` argument and its account from `CLAUDE_CONFIG_DIR`, both read off the parent `claude` process once at start. Override with the `sessionName` option or the `CLAUDE_HUD_NAME` env var.
 
@@ -102,6 +103,8 @@ The quiet-mode values above are the defaults: the flag file the kit's `scripts/q
 | `commitWarnPct` / `commitCritPct` | 85 / 95 | Windows commit amber and red levels. |
 | `commitCmd` | PowerShell one-liner | Prints `<limitKB> <freeKB>`. Empty disables the commit reading (not on WSL). |
 | `commitSeconds` | 30 | Minimum seconds between commit readings. |
+| `cpuTempCmd` | Linux sensor, else LibreHardwareMonitor on Windows | Prints the CPU temperature in °C. On WSL it needs LibreHardwareMonitor running on Windows. Empty disables it. |
+| `cpuTempSeconds` | 15 | Minimum seconds between CPU temperature readings. |
 | `mounts` | `/` | Comma-separated mount points for the disk meters. |
 | `showForNames` | `Orca` | Comma-separated session names that draw the HUD (exact, case-sensitive). Empty shows it in every session. kit-init sets your seat. |
 | `statusDir` | `~/.claude-status-hud` | Shared directory. All sessions must use the same one. |
