@@ -269,6 +269,8 @@ const TASKS = [
   { id: 'b1', type: 'shell', status: 'running', description: 'Run the long check', command: 'curl -H "Authorization: SECRET-TOKEN" https://x.example/y' },
   { id: 'a1', type: 'subagent', status: 'running', description: 'Review the change', agent_type: 'Explore' },
 ]
+// ◔ drawn in the band (a key row may hold one too, so tests compare against an idle drawing).
+const bgMarks = async ($: any): Promise<number> => ((await drawnBand($)).match(/◔/g) ?? []).length
 // The engine's own end of a turn and of a prompt, beneath the plugin.
 const turns = (on: any): void => {
   on('turn.complete', async () => ({ text: '' }))
@@ -282,13 +284,15 @@ test('a turn that ends with background work still running is ◔ bg, naming the 
   await $.session.start(START)
   await w.clock.advance(500)
   await $.turn.complete(END)
+  await w.clock.advance(3000)
+  const idle = await bgMarks($)
   await $.classic.Stop({ stop_hook_active: false, background_tasks: TASKS } as never)
   await w.clock.advance(3000)
   const hb = JSON.parse(w.files.get(HB) ?? '{}')
   expect(hb.state).toBe('bg')
   expect(hb.activity).toBe('bg: Run the long check +1')
   expect(w.files.get(HB)).not.toContain('SECRET-TOKEN')
-  expect(await drawnBand($)).toContain('◔')
+  expect(await bgMarks($)).toBe(idle + 1)
 })
 
 test('the next turn that stops with nothing in flight goes back to ○ idle', async ($, on) => {
@@ -297,6 +301,8 @@ test('the next turn that stops with nothing in flight goes back to ○ idle', as
   await $.session.start(START)
   await w.clock.advance(500)
   await $.turn.complete(END)
+  await w.clock.advance(3000)
+  const idle = await bgMarks($)
   await $.classic.Stop({ stop_hook_active: false, background_tasks: TASKS } as never)
   await $.prompt.submit({ text: 'the job finished' } as never)
   await $.turn.complete(END)
@@ -305,7 +311,7 @@ test('the next turn that stops with nothing in flight goes back to ○ idle', as
   const hb = JSON.parse(w.files.get(HB) ?? '{}')
   expect(hb.state).toBe('idle')
   expect(hb.activity).toBe('')
-  expect(await drawnBand($)).not.toContain('◔')
+  expect(await bgMarks($)).toBe(idle)
 })
 
 test('a subagent\'s turn ending leaves the main session busy', async ($, on) => {
