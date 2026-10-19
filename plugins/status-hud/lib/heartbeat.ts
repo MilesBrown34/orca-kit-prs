@@ -4,7 +4,7 @@ export function serializeHeartbeat(h: Heartbeat): string {
   return JSON.stringify(h)
 }
 
-const STATES: readonly Busy[] = ['busy', 'idle', 'shell']
+const STATES: readonly Busy[] = ['busy', 'idle', 'shell', 'bg']
 
 /** Tolerant parse: a half-written or foreign file is skipped, never thrown. */
 export function parseHeartbeat(text: string): Heartbeat | null {
