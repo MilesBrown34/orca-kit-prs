@@ -188,6 +188,14 @@ export function dotColor(v: View, h: Heartbeat): Col {
   return h.account === 2 ? C.purple : C.blue
 }
 
+/** The activity line; a ◔ row adds the tracked programs its background work is running (`bg: <job> · godot ×2`). */
+export function activityText(h: Heartbeat): string {
+  if (h.state !== 'bg' || !h.apps?.length) return h.activity
+  const n = new Map<string, number>()
+  for (const a of h.apps) n.set(a, (n.get(a) ?? 0) + 1)
+  return `${h.activity} · ${[...n].map(([a, k]) => (k > 1 ? `${a} ×${k}` : a)).join(', ')}`
+}
+
 /** One session row: dot, name, context bar + K, state glyph, activity; each part can be switched off. Flashes red after crossing the report mark. */
 export function sessionRow(v: View, h: Heartbeat, w: number, selected = false): Scr {
   const s = new Scr(w, 1)
@@ -224,7 +232,7 @@ export function sessionRow(v: View, h: Heartbeat, w: number, selected = false): 
     s.put(x, 0, st[0] as string, flashing ? C.white : (st[1] as Col), bg, true)
     x += 2
   }
-  if (on('activity') && w - x > 6) s.put(x, 0, trunc(h.activity, w - x), flashing ? C.white : C.dim, bg)
+  if (on('activity') && w - x > 6) s.put(x, 0, trunc(activityText(h), w - x), flashing ? C.white : C.dim, bg)
   return s
 }
 
@@ -405,7 +413,7 @@ export function drawPane(v: View, cols: number): Line[] {
     const t = new Scr(W, 3)
     t.put(1, 0, `▸ ${cur.name}`, C.gold, null, true)
     t.put(4 + cur.name.length, 0, `${cur.state} · ${kfmt(cur.tokens)} of ${kfmt(cur.window)} · ${v.cfg.dotMode === 'project' ? cur.project || 'no project' : `acct ${cur.account}`} · ${cur.model}`, C.dim)
-    t.put(1, 1, trunc(cur.activity, W - 2), C.tx)
+    t.put(1, 1, trunc(activityText(cur), W - 2), C.tx)
     t.put(1, 2, `context ${Math.round((cur.tokens / cur.window) * 100)}% ${lv === 'red' ? '(report now)' : lv === 'amber' ? '(hand over soon)' : '(ok)'}`, LV[lv])
     for (let y = 0; y < 3; y++) lines.push([seg(t, y)])
   }

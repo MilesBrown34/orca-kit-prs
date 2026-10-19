@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { parseConfig } from '../lib/config'
-import { chips, drawBand, drawPane, lineText, modelBadge, sessionRow, spin, type Line, type View } from '../lib/layout'
+import { activityText, chips, drawBand, drawPane, lineText, modelBadge, sessionRow, spin, type Line, type View } from '../lib/layout'
 import type { Heartbeat, Snapshot } from '../types'
 
 const S = (name: string, k: number, state: Heartbeat['state'] = 'busy', account = 1): Heartbeat => ({ id: name, name, model: 'opus', account, tokens: k * 1000, window: 1_000_000, state, activity: 'doing a long thing that should truncate rather than wrap', at: 0 })
@@ -224,4 +224,13 @@ test('model badge after the name: OPS yellow, SNT blue, HKU green, GEM purple, e
   expect(badge?.fg).toBe('#e8b030')
   expect(row('opus', 28)).not.toContain('OPS')   // too narrow: the badge gives way first
   for (const cols of [180, 120, 100]) for (const l of drawBand(view(), cols, 10)) expect(widthOf(l)).toBeLessThanOrEqual(cols)
+})
+
+test('a ◔ row names the tracked programs its background work runs; other states and no programs leave the activity alone', () => {
+  const bg = { ...S('Pan', 100, 'bg'), activity: 'bg: Run the checks', apps: ['godot', 'blender', 'godot'] }
+  expect(activityText(bg)).toBe('bg: Run the checks · godot ×2, blender')
+  expect(sessionRow(view(), bg, 120).runs(0).map(r => r.text).join('')).toContain('bg: Run the checks · godot ×2, blender')
+  expect(activityText({ ...bg, apps: [] })).toBe('bg: Run the checks')
+  expect(activityText({ ...bg, apps: undefined })).toBe('bg: Run the checks')
+  expect(activityText({ ...bg, state: 'shell', activity: 'Bash: Run the checks' })).toBe('Bash: Run the checks')
 })
