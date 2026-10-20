@@ -271,12 +271,12 @@ export function drawCompact(v: View, W: number): Line[] {
   return [[seg(s, 0)], [seg(s, 1)], chipLine(v, W, ' ', '')]
 }
 
-const HELM = [
-  '..H..........H..', '.HH..........HH.', '.HH..KKKKKK..HH.', '..HHKSSSSSSKHH..',
-  '...KSLLSSSSSK...', '...KSLSSSSSSK...', '...KGGGGGGGGK...', '...KSSSKKSSSK...',
-  '...KSSSKKSSDK...', '....KSSKKSSK....', '....KDS..SDK....', '.....KK..KK.....',
+const KOI = [
+  '................', '......KKK.......', '....KKRRRKK...KK', '..KKWWRRWWWK.KWK',
+  '.KWWRRWWWRRWKWWK', 'KWEWRRWWWRRRWWK.', 'KWWWWWWWWWWWWWK.', '.KWWWWRRWWWWKWWK',
+  '..KKWWRRWWKK.KWK', '....KKOKKK....KK', '.....KOK........', '................',
 ]
-const PX: Record<string, Col> = { K: C.ol, S: C.steel, L: C.steelL, D: C.steelD, G: C.gold, H: C.bone }
+const PX: Record<string, Col> = { K: C.ol, W: C.white, R: '#e85430', O: C.orange, E: C.bg }
 
 const sep = (W: number, label: string): Line => {
   const s = new Scr(W, 1)
@@ -285,16 +285,16 @@ const sep = (W: number, label: string): Line => {
   return [seg(s, 0)]
 }
 
-/** Variant C: the taller pane (about 60 columns), sprite helm on top, every session a clickable row. */
+/** Variant C: the taller pane (about 60 columns), sprite koi on top, every session a clickable row. */
 export function drawPane(v: View, cols: number): Line[] {
   const W = clamp(cols, 30, 80)
   const host = v.snap.host
   const ss = v.snap.sessions
   const lines: Line[] = []
   const head = new Scr(W, 6)
-  const showHelm = W >= 44
-  if (showHelm) sprite(head, 1, 0, HELM, PX)
-  const hx = showHelm ? 19 : 1
+  const showKoi = W >= 44
+  if (showKoi) sprite(head, 1, 0, KOI, PX)
+  const hx = showKoi ? 19 : 1
   head.put(hx, 0, 'STATUS HUD', C.gold, null, true)
   head.put(hx, 1, 'terminal status hud', C.steel)
   const d = new Date(v.now)
