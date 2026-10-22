@@ -4,6 +4,8 @@ Newest first.
 
 ## Unreleased
 
+- **New: skill checks.** `tests/skills-lint.test.sh` (part of `tests/run.sh`) refuses a skill or agent whose frontmatter `name` is not its folder, whose `description` is missing or over 1024 characters, that cites a `${CLAUDE_PLUGIN_ROOT}/` path, a markdown link or a file "in this skill's folder" that does not exist, or that carries a personal home path; with `KIT_PRIVATE_WORDS=<file>` it also refuses any word on that list.
+- **New: `scripts/skill-usage.py <session log folder> [--days N]`** counts which kit skills a project's sessions actually ran (slash command or Skill tool) and lists the ones never run.
 - **Changed: the GitHub repository is now `Artekka/orcastration-kit`** (was `claude-orchestration-kit`). Install with `claude plugin marketplace add Artekka/orcastration-kit`; the plugin id (`orchestration-kit@artekka-kits`), its slash commands and `~/.orchestration-kit/` do not change. GitHub redirects the old URL, so existing installs keep working. README, GETTING-STARTED, CONTRIBUTING, SECURITY, the issue-template link and the Code of Conduct contact link use the new name; the plugin manifest gains `homepage` and `repository`.
 - **Fixed: a team start with no Claude running exited silently.** (PRS 2026-10-17)
 - **New: `gate-throttle.sh --log <file>`.** (PRS 2026-10-15)
