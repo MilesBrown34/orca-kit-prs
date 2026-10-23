@@ -153,6 +153,7 @@ out="$("$X" release 2>&1)"; rc_is "release: succeeds" 0 $?; has "release: report
 rd="$(git -C "$K" show prs:README.md)"; has "readme: top names the release" "official release is **v1.0.0**, on Artekka's 1.1" "$rd"; has "readme: extras table" "| Tabs | tab colors |" "$rd"; has "readme: changelog entry" "### v1.0.0 (" "$rd"; has "readme: middle kept" "middle" "$rd"
 [ "$(git -C "$K" rev-parse extra/fork-readme:README.md)" = "$(git -C "$K" rev-parse prs:README.md)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL readme: branch and prs differ"; }
 out="$("$X" check)"; rc_is "check: readme commits belong to the extra" 0 $?
+[ "$(git -C "$R" rev-parse extra/fork-readme)" = "$(git -C "$K" rev-parse extra/fork-readme)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: readme extra branch not pushed to the fork"; }
 [ "$(git -C "$R" rev-parse main)" = "$(git -C "$K" rev-parse prs)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: fork main is not prs"; }
 [ "$(git -C "$R" rev-parse v1.0.0^{commit})" = "$(git -C "$K" rev-parse prs)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: tag not on the fork"; }
 out="$("$X" news)"; has "news: official version shown" "Official version: v1.0.0." "$out"

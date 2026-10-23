@@ -356,6 +356,8 @@ def cmd_release(dry, bump="patch"):
         raise SystemExit("release refused: the gate is red (exit %d). Last lines:\n%s" % (r.returncode, tail))
     git("tag", "-a", tag, "prs", "-m", "%s Orca-kit %s on Artekka's kit %s, plus the extras listed in MY-EXTRAS.md" % (RELEASE_MARK, tag, version("prs")))
     git("push", ORIGIN, "prs")
+    if git("rev-parse", "--verify", "-q", "extra/" + README_EXTRA, check=False):
+        git("push", ORIGIN, "extra/" + README_EXTRA)   # the README commits live on that branch: back it up with prs
     lease = "--force-with-lease=%s:%s" % (OFFICIAL, old) if old else "--force-with-lease"
     git("push", lease, ORIGIN, "prs:refs/heads/" + OFFICIAL)
     git("push", ORIGIN, "refs/tags/" + tag)
