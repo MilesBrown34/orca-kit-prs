@@ -17,8 +17,10 @@ Usage: my-extras <command>
   release [--dry-run]   package prs as the official version a visitor downloads: refuses while upstream has
            new commits (update first), the tree is dirty, prs holds an unlisted change, or the gate
            (MY_EXTRAS_GATE, default `bash tests/run.sh`) is red; then tags prs v<kit>-r<n>, pushes prs,
-           overwrites the fork's official branch (MY_EXTRAS_OFFICIAL, default main, with --force-with-lease)
-           and pushes the tag. The header shows ⚑ release due while the newest tag is not at prs.
+           overwrites the fork's official branch (MY_EXTRAS_OFFICIAL, default main, with --force-with-lease),
+           pushes the tag and makes a GitHub Release page on the fork (notes = the kit version and the extras'
+           one-line descriptions, scanned by push-check first). The header shows ⚑ release due while the
+           newest tag is not at prs.
 Env: MY_EXTRAS_REPO (default: this script's repo), MY_EXTRAS_UPSTREAM (default upstream/main),
      MY_EXTRAS_ORIGIN (default origin: the fork), MY_EXTRAS_OFFICIAL (default main),
      MY_EXTRAS_NO_NET=1 (never fetch or call gh; tests), MY_EXTRAS_GH_REPO (default Artekka/claude-orchestration-kit).
@@ -174,6 +176,24 @@ def next_release_tag():
     return "v%s-r%d" % (v, n + 1)
 
 
+def fork_repo():
+    """owner/name of the fork, from the origin remote's URL (never written into this tool)."""
+    url = git("remote", "get-url", ORIGIN, check=False)
+    m = re.search(r"github\.com[:/]([^/]+/[^/\s]+?)(?:\.git)?$", url)
+    return m.group(1) if m else ""
+
+
+def release_notes(tag, extras):
+    kit = version("prs")
+    live = in_kit(extras)
+    lines = ["Artekka's orchestration kit %s plus %d extra%s, packaged as %s." % (kit, len(live), "" if len(live) == 1 else "s", tag), ""]
+    for e in live:
+        lines.append("- **%s**: %s" % (e.get("name", e["id"]), e.get("what", "")))
+    lines += ["", "Install: `claude plugin marketplace add <this repository>` then `claude plugin install orchestration-kit@artekka-kits`.",
+              "The extras' own notes are in CHANGELOG.md under Unreleased; everything else is Artekka's kit as released."]
+    return "\n".join(lines) + "\n"
+
+
 def cmd_release(dry):
     if not NO_NET:
         for remote in (UP.split("/")[0], ORIGIN):
@@ -190,15 +210,29 @@ def cmd_release(dry):
         raise SystemExit("release refused: prs holds changes that belong to no extra:\n  " + "\n  ".join(stray))
     tag = next_release_tag()
     sha = git("rev-parse", "--short", "prs")
+    extras, _ = read_page()
+    notes = release_notes(tag, extras)
+    import tempfile
+    nf = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False)
+    nf.write(notes); nf.close()
+    scan = subprocess.run([os.path.join(HERE, "push-check"), "file", nf.name], capture_output=True, text=True)
+    if scan.returncode != 0:
+        os.unlink(nf.name)
+        raise SystemExit("release refused: the release notes hold a private word (fix the extra's description in MY-EXTRAS.md):\n" + scan.stdout.strip())
+    repo = fork_repo()
     old = git("rev-parse", "--verify", "-q", "%s/%s" % (ORIGIN, OFFICIAL), check=False)
     plan = ["tag prs (%s) as %s" % (sha, tag),
             "push prs to %s" % ORIGIN,
             "overwrite %s/%s with prs (force-with-lease; it held %s)" % (ORIGIN, OFFICIAL, old[:7] if old else "nothing"),
-            "push the tag %s" % tag]
+            "push the tag %s" % tag,
+            "make the GitHub Release page %s on %s" % (tag, repo or "(no GitHub origin: skipped)")]
     if dry:
         print("release (dry run) would, after a green gate `%s`:" % GATE)
         for p in plan:
             print("  " + p)
+        print("Release notes:")
+        print("  " + notes.replace("\n", "\n  ").rstrip())
+        os.unlink(nf.name)
         return
     print("gate: " + GATE)
     r = subprocess.run(GATE, shell=True, cwd=REPO, capture_output=True, text=True)
@@ -210,6 +244,14 @@ def cmd_release(dry):
     lease = "--force-with-lease=%s:%s" % (OFFICIAL, old) if old else "--force-with-lease"
     git("push", lease, ORIGIN, "prs:refs/heads/" + OFFICIAL)
     git("push", ORIGIN, "refs/tags/" + tag)
+    page = "skipped (no network)" if NO_NET else "skipped (origin is not on GitHub)" if not repo else ""
+    if not page:
+        r = subprocess.run(["timeout", "60", "gh", "release", "create", tag, "--repo", repo, "--title",
+                            "Orca-kit %s + extras (%s)" % (version("prs"), tag), "--notes-file", nf.name],
+                           capture_output=True, text=True)
+        page = r.stdout.strip() if r.returncode == 0 else "FAILED (%s); the tag is pushed, so run: gh release create %s --repo %s --notes-file <notes>" % (r.stderr.strip()[:160], tag, repo)
+    os.unlink(nf.name)
+    plan[-1] += ": " + page
     for p in plan:
         print("  done: " + p)
     print("released %s: %s/%s is now prs at %s." % (tag, ORIGIN, OFFICIAL, sha))

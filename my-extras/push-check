@@ -9,6 +9,7 @@
 #                                                runs this before EVERY push; prints the hook path
 #        my-extras/push-check tree <ref>...      scan the whole tree at each ref (what a visitor would download)
 #        my-extras/push-check diff <a> <b>       scan the lines <b> adds since <a>, and the commit messages
+#        my-extras/push-check file <path>...     scan plain files (release notes, a PR body) before they go anywhere
 #        my-extras/push-check hook <remote> <url> what git calls (refs on stdin): for each pushed branch or tag,
 #                                                the tree at its tip plus the message and added lines of every
 #                                                commit that remote does not hold yet (history it already has passes)
@@ -41,7 +42,7 @@ HOOK
   echo "installed $hooks/pre-push"
   exit 0
 fi
-case "$cmd" in tree|diff|hook) ;; *) usage ;; esac
+case "$cmd" in tree|diff|file|hook) ;; *) usage ;; esac
 
 [ -r "$WORDS" ] || { echo "REFUSED: no private word list at $WORDS (one pattern per line): cannot check for personal names"; exit 64; }
 PAT="$(mktemp)"
@@ -62,6 +63,7 @@ zero=0000000000000000000000000000000000000000
 case "$cmd" in
   tree) [ $# -ge 1 ] || usage; for r in "$@"; do scan_tree "$r"; done ;;
   diff) [ $# -eq 2 ] || usage; scan_commits "$1..$2" ;;
+  file) [ $# -ge 1 ] || usage; for f in "$@"; do grep -n -i -E -f "$PAT" "$f" 2>/dev/null | sed "s|^|$f:|" >>"$HITS"; done ;;
   hook)
     remote="${1:-origin}"
     while read -r lref lsha rref rsha; do

@@ -136,9 +136,15 @@ echo stray2 >> "$K/hud.ts"; q commit -qam "stray on prs"
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: refused with an unlisted change" 1 $?; has "release: names it" "stray on prs" "$out"
 q reset -q --hard HEAD~1
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: dry run passes the checks" 0 $?; has "release: plan shown" "tag prs" "$out"; has "release: next tag" "v1.1-r1" "$out"
+has "release: notes name the kit and the extras" "kit 1.1 plus 2 extras" "$out"; has "release: notes list an extra" "**Tabs**: tab colors" "$out"; has "release: page step shown" "Release page" "$out"
+sed -i 's/^- what: tab colors$/- what: tab colors for zebrafinch/' "$K/MY-EXTRAS.md"
+out="$("$X" release --dry-run 2>&1)"; rc_is "release: refused when the notes hold a private word" 1 $?; has "release: says notes" "release notes hold a private word" "$out"
+sed -i 's/^- what: tab colors for zebrafinch$/- what: tab colors/' "$K/MY-EXTRAS.md"
+out="$("$PCK" file "$K/MY-EXTRAS.md")"; rc_is "push-check: file mode on a clean file" 0 $?
+printf 'a zebrafinch line\n' > "$TMP/note.md"; out="$("$PCK" file "$TMP/note.md")"; rc_is "push-check: file mode refuses" 1 $?; has "push-check: file mode names the line" "note.md:1:" "$out"
 has "release: no tag on a dry run" "" "$(git -C "$K" tag -l 'v*-r*')"; [ -z "$(git -C "$K" tag -l 'v*-r*')" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: dry run made a tag"; }
 out="$(MY_EXTRAS_GATE=false "$X" release 2>&1)"; rc_is "release: refused on a red gate" 1 $?; has "release: says red" "gate is red" "$out"
-out="$("$X" release 2>&1)"; rc_is "release: succeeds" 0 $?; has "release: reports the tag" "released v1.1-r1" "$out"
+out="$("$X" release 2>&1)"; rc_is "release: succeeds" 0 $?; has "release: reports the tag" "released v1.1-r1" "$out"; has "release: page skipped offline" "skipped (no network)" "$out"
 [ "$(git -C "$R" rev-parse main)" = "$(git -C "$K" rev-parse prs)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: fork main is not prs"; }
 [ "$(git -C "$R" rev-parse v1.1-r1^{commit})" = "$(git -C "$K" rev-parse prs)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: tag not on the fork"; }
 out="$("$X" header)"; hasnt "header: nothing due right after a release" "⚑" "$out"
