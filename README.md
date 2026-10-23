@@ -1,5 +1,11 @@
 # orchestration-kit
 
+<!-- own-fork:top -->
+**This is PRS's fork of Artekka's orchestration kit.** It is his kit, kept current with his releases, plus the
+extras in the table below. The release command fills this block.
+<!-- /own-fork:top -->
+
+
 Run **several Claude Code sessions on one repo at the same time** without file collisions,
 lost work, or confabulated green: a shared claimable board, one git worktree per session,
 and every piece of work verified by a session that didn't build it. Proven on the origin
@@ -226,3 +232,11 @@ branch and PR flow, commit messages and the optional pre-push secret scan. Every
 ## Contributors
 
 - Miles Brown (@MilesBrown34)
+
+## PRS's changelog
+
+Artekka's own changelog is in [CHANGELOG.md](CHANGELOG.md), his releases top down; the extras' lines sit there under
+Unreleased. Below, one entry per release of this fork, newest first.
+
+<!-- own-fork:changelog -->
+<!-- /own-fork:changelog -->
