@@ -158,7 +158,7 @@ def stray_commits():
     return out
 
 
-RELEASE_MARK = "release:"   # the first word of every tag message this tool writes: tells our tags from Artekka's
+RELEASE_MARK = "own-release:"   # the first word of every tag message this tool writes; Artekka's start with "release:"
 
 
 def release_tags():
