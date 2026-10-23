@@ -250,7 +250,7 @@ def readme_log_entry(tag, prev, extras):
     if not prev:
         return head + "\nFirst official release: Artekka's %s plus %d extras." % (kit, len(now))
     old_kit = version(prev)
-    before = readme_names_at(prev)
+    before = readme_names_at(prev) - set(e.get("name", e["id"]) for e in extras if e["id"] == README_EXTRA)
     parts = ["Artekka's kit %s → %s." % (old_kit, kit) if old_kit != kit else "Artekka's kit still %s." % kit]
     added, gone = sorted(now - before), sorted(before - now)
     if added:
@@ -258,7 +258,7 @@ def readme_log_entry(tag, prev, extras):
     if gone:
         parts.append("Extras given to his kit or retired: " + ", ".join(gone) + ".")
     if not added and not gone:
-        parts.append("Extras refitted; %d in the kit." % len(now))
+        parts.append("No new extras; %d in the kit." % len(now))
     return head + "\n" + " ".join(parts)
 
 
