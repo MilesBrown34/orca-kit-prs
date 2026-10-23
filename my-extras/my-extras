@@ -14,9 +14,11 @@ Usage: my-extras <command>
   check    exit 1 (and list them) when prs has commits that belong to no extra
   refresh  fetch upstream and pull-request states now, and rewrite MY-EXTRAS.md's table
   files <id>   the files extra <id> changes
-  release [--dry-run]   package prs as the official version a visitor downloads: refuses while upstream has
-           new commits (update first), the tree is dirty, prs holds an unlisted change, or the gate
-           (MY_EXTRAS_GATE, default `bash tests/run.sh`) is red; then tags prs v<kit>-r<n>, pushes prs,
+  release [--dry-run] [--minor|--major]   package prs as the official version a visitor downloads: refuses
+           while upstream has new commits (update first), the tree is dirty, prs holds an unlisted change,
+           prs is already released, or the gate (MY_EXTRAS_GATE, default `bash tests/run.sh`) is red; then
+           tags prs with the kit's own version (v1.0.0 first; the last number bumps unless --minor/--major;
+           Artekka's version goes in the title and notes), pushes prs,
            overwrites the fork's official branch (MY_EXTRAS_OFFICIAL, default main, with --force-with-lease),
            pushes the tag and makes a GitHub Release page on the fork (notes = the kit version and the extras'
            one-line descriptions, scanned by push-check first). The header shows ⚑ release due while the
@@ -156,8 +158,17 @@ def stray_commits():
     return out
 
 
+RELEASE_MARK = "release:"   # the first word of every tag message this tool writes: tells our tags from Artekka's
+
+
 def release_tags():
-    return git("tag", "-l", "v*-r*", "--sort=-v:refname").splitlines()
+    """Our release tags, newest first (Artekka's tags share the fork, so the message marks ours)."""
+    out = []
+    for line in git("for-each-ref", "refs/tags", "--sort=-v:refname", "--format=%(refname:short) %(contents:subject)").splitlines():
+        name, _, subject = line.partition(" ")
+        if subject.startswith(RELEASE_MARK) and re.match(r"^v\d+\.\d+\.\d+$", name):
+            out.append(name)
+    return out
 
 
 def release_due():
@@ -166,14 +177,18 @@ def release_due():
     return (not tags) or git("rev-parse", tags[0] + "^{commit}") != git("rev-parse", "prs")
 
 
-def next_release_tag():
-    v = version("prs")
-    n = 0
-    for t in release_tags():
-        m = re.match(r"^v(.+)-r(\d+)$", t)
-        if m and m.group(1) == v:
-            n = max(n, int(m.group(2)))
-    return "v%s-r%d" % (v, n + 1)
+def next_release_tag(bump="patch"):
+    tags = release_tags()
+    if not tags:
+        return "v1.0.0"
+    a, b, c = (int(x) for x in tags[0][1:].split("."))
+    if bump == "major":
+        a, b, c = a + 1, 0, 0
+    elif bump == "minor":
+        b, c = b + 1, 0
+    else:
+        c += 1
+    return "v%d.%d.%d" % (a, b, c)
 
 
 def fork_repo():
@@ -186,7 +201,7 @@ def fork_repo():
 def release_notes(tag, extras):
     kit = version("prs")
     live = in_kit(extras)
-    lines = ["Artekka's orchestration kit %s plus %d extra%s, packaged as %s." % (kit, len(live), "" if len(live) == 1 else "s", tag), ""]
+    lines = ["Orca-kit %s: Artekka's orchestration kit %s plus %d extra%s." % (tag, kit, len(live), "" if len(live) == 1 else "s"), ""]
     for e in live:
         lines.append("- **%s**: %s" % (e.get("name", e["id"]), e.get("what", "")))
     lines += ["", "Install: `claude plugin marketplace add <this repository>` then `claude plugin install orchestration-kit@artekka-kits`.",
@@ -194,7 +209,7 @@ def release_notes(tag, extras):
     return "\n".join(lines) + "\n"
 
 
-def cmd_release(dry):
+def cmd_release(dry, bump="patch"):
     if not NO_NET:
         for remote in (UP.split("/")[0], ORIGIN):
             r = subprocess.run(["timeout", "20", "git", "-C", REPO, "fetch", "-q", "--tags", remote], capture_output=True, text=True)
@@ -208,7 +223,11 @@ def cmd_release(dry):
     stray = stray_commits()
     if stray:
         raise SystemExit("release refused: prs holds changes that belong to no extra:\n  " + "\n  ".join(stray))
-    tag = next_release_tag()
+    if not release_due():
+        raise SystemExit("release refused: prs is already released as %s; nothing new since." % release_tags()[0])
+    tag = next_release_tag(bump)
+    if git("tag", "-l", tag):
+        raise SystemExit("release refused: a tag %s already exists on this repository (Artekka's?). Pick --minor or --major, or rename." % tag)
     sha = git("rev-parse", "--short", "prs")
     extras, _ = read_page()
     notes = release_notes(tag, extras)
@@ -239,7 +258,7 @@ def cmd_release(dry):
     if r.returncode != 0:
         tail = "\n".join((r.stdout + r.stderr).splitlines()[-12:])
         raise SystemExit("release refused: the gate is red (exit %d). Last lines:\n%s" % (r.returncode, tail))
-    git("tag", "-a", tag, "prs", "-m", "Official %s: Artekka's kit %s plus the extras listed in MY-EXTRAS.md" % (tag, version("prs")))
+    git("tag", "-a", tag, "prs", "-m", "%s Orca-kit %s on Artekka's kit %s, plus the extras listed in MY-EXTRAS.md" % (RELEASE_MARK, tag, version("prs")))
     git("push", ORIGIN, "prs")
     lease = "--force-with-lease=%s:%s" % (OFFICIAL, old) if old else "--force-with-lease"
     git("push", lease, ORIGIN, "prs:refs/heads/" + OFFICIAL)
@@ -247,7 +266,7 @@ def cmd_release(dry):
     page = "skipped (no network)" if NO_NET else "skipped (origin is not on GitHub)" if not repo else ""
     if not page:
         r = subprocess.run(["timeout", "60", "gh", "release", "create", tag, "--repo", repo, "--title",
-                            "Orca-kit %s + extras (%s)" % (version("prs"), tag), "--notes-file", nf.name],
+                            "Orca-kit %s, on Artekka's %s" % (tag, version("prs")), "--notes-file", nf.name],
                            capture_output=True, text=True)
         page = r.stdout.strip() if r.returncode == 0 else "FAILED (%s); the tag is pushed, so run: gh release create %s --repo %s --notes-file <notes>" % (r.stderr.strip()[:160], tag, repo)
     os.unlink(nf.name)
@@ -438,7 +457,8 @@ def main():
     elif cmd == "files" and len(sys.argv) > 2:
         print("\n".join(extra_files(sys.argv[2])))
     elif cmd == "release":
-        cmd_release("--dry-run" in sys.argv[2:])
+        flags = sys.argv[2:]
+        cmd_release("--dry-run" in flags, "major" if "--major" in flags else "minor" if "--minor" in flags else "patch")
     else:
         print(__doc__.strip(), file=sys.stderr)
         sys.exit(64)

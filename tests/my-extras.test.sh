@@ -135,24 +135,32 @@ q checkout -q -- hud.ts
 echo stray2 >> "$K/hud.ts"; q commit -qam "stray on prs"
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: refused with an unlisted change" 1 $?; has "release: names it" "stray on prs" "$out"
 q reset -q --hard HEAD~1
-out="$("$X" release --dry-run 2>&1)"; rc_is "release: dry run passes the checks" 0 $?; has "release: plan shown" "tag prs" "$out"; has "release: next tag" "v1.1-r1" "$out"
-has "release: notes name the kit and the extras" "kit 1.1 plus 2 extras" "$out"; has "release: notes list an extra" "**Tabs**: tab colors" "$out"; has "release: page step shown" "Release page" "$out"
+out="$("$X" release --dry-run 2>&1)"; rc_is "release: dry run passes the checks" 0 $?; has "release: plan shown" "tag prs" "$out"; has "release: first tag is v1.0.0" "v1.0.0" "$out"
+has "release: notes name the kit and the extras" "Orca-kit v1.0.0: Artekka's orchestration kit 1.1 plus 2 extras" "$out"; has "release: notes list an extra" "**Tabs**: tab colors" "$out"; has "release: page step shown" "Release page" "$out"
 sed -i 's/^- what: tab colors$/- what: tab colors for zebrafinch/' "$K/MY-EXTRAS.md"
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: refused when the notes hold a private word" 1 $?; has "release: says notes" "release notes hold a private word" "$out"
 sed -i 's/^- what: tab colors for zebrafinch$/- what: tab colors/' "$K/MY-EXTRAS.md"
 out="$("$PCK" file "$K/MY-EXTRAS.md")"; rc_is "push-check: file mode on a clean file" 0 $?
 printf 'a zebrafinch line\n' > "$TMP/note.md"; out="$("$PCK" file "$TMP/note.md")"; rc_is "push-check: file mode refuses" 1 $?; has "push-check: file mode names the line" "note.md:1:" "$out"
-has "release: no tag on a dry run" "" "$(git -C "$K" tag -l 'v*-r*')"; [ -z "$(git -C "$K" tag -l 'v*-r*')" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: dry run made a tag"; }
+[ -z "$(git -C "$K" tag -l 'v1.*')" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: dry run made a tag"; }
 out="$(MY_EXTRAS_GATE=false "$X" release 2>&1)"; rc_is "release: refused on a red gate" 1 $?; has "release: says red" "gate is red" "$out"
-out="$("$X" release 2>&1)"; rc_is "release: succeeds" 0 $?; has "release: reports the tag" "released v1.1-r1" "$out"; has "release: page skipped offline" "skipped (no network)" "$out"
+out="$("$X" release 2>&1)"; rc_is "release: succeeds" 0 $?; has "release: reports the tag" "released v1.0.0" "$out"; has "release: page skipped offline" "skipped (no network)" "$out"
 [ "$(git -C "$R" rev-parse main)" = "$(git -C "$K" rev-parse prs)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: fork main is not prs"; }
-[ "$(git -C "$R" rev-parse v1.1-r1^{commit})" = "$(git -C "$K" rev-parse prs)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: tag not on the fork"; }
+[ "$(git -C "$R" rev-parse v1.0.0^{commit})" = "$(git -C "$K" rev-parse prs)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: tag not on the fork"; }
 out="$("$X" header)"; hasnt "header: nothing due right after a release" "⚑" "$out"
-out="$("$X" news)"; has "news: official version shown" "Official version: v1.1-r1 = prs" "$out"
+out="$("$X" news)"; has "news: official version shown" "Official version: v1.0.0 = prs" "$out"
 echo more2 > "$K/my-extras/x"; q commit -qam "tracking 3"
 out="$("$X" header)"; has "header: release due after a new commit" "⚑ release due" "$out"
-out="$("$X" release 2>&1)"; rc_is "release: second release overwrites main" 0 $?; has "release: second tag" "released v1.1-r2" "$out"
+out="$("$X" release 2>&1)"; rc_is "release: second release overwrites main" 0 $?; has "release: patch bump by default" "released v1.0.1" "$out"
 [ "$(git -C "$R" rev-parse main)" = "$(git -C "$K" rev-parse prs)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: fork main not moved by the second release"; }
+out="$("$X" release 2>&1)"; rc_is "release: same commit twice refused" 1 $?; has "release: says already released" "already released as v1.0.1" "$out"
+echo more3 > "$K/my-extras/x"; q commit -qam "tracking 4"
+out="$("$X" release --minor 2>&1)"; rc_is "release: --minor" 0 $?; has "release: minor bump" "released v1.1.0" "$out"
+echo more4 > "$K/my-extras/x"; q commit -qam "tracking 5"
+out="$("$X" release --major --dry-run 2>&1)"; rc_is "release: --major dry run" 0 $?; has "release: major bump" "v2.0.0" "$out"
+git -C "$K" tag -a v1.1.1 -m "his tag, not ours" prs
+out="$("$X" release --dry-run 2>&1)"; rc_is "release: a foreign tag with the next name stops it" 1 $?; has "release: names the clash" "v1.1.1 already exists" "$out"
+git -C "$K" tag -d v1.1.1 >/dev/null
 unset MY_EXTRAS_GATE
 
 # --- the real kit folder: prs holds nothing that belongs to no extra
