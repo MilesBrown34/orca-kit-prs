@@ -205,7 +205,7 @@ def fork_repo():
 
 def release_notes(tag, extras):
     kit = version("prs")
-    live = in_kit(extras)
+    live = listed(extras)
     lines = ["Orca-kit %s: Artekka's orchestration kit %s plus %d extra%s." % (tag, kit, len(live), "" if len(live) == 1 else "s"), ""]
     for e in live:
         lines.append("- **%s**: %s" % (e.get("name", e["id"]), e.get("what", "")))
@@ -216,13 +216,13 @@ def release_notes(tag, extras):
 
 def extras_table(extras):
     rows = ["| Extra | What it does |", "|---|---|"]
-    for e in in_kit(extras):
+    for e in listed(extras):
         rows.append("| %s | %s |" % (e.get("name", e["id"]).replace("|", "\\|"), e.get("what", "").replace("|", "\\|")))
     return "\n".join(rows)
 
 
 def readme_top(tag, extras):
-    n = len(in_kit(extras))
+    n = len(listed(extras))
     return "\n".join([
         TOP_A,
         "**This is PRS's fork of Artekka's orchestration kit.** It is his kit, kept current with his releases, plus the",
@@ -245,7 +245,7 @@ def readme_names_at(ref):
 
 def readme_log_entry(tag, prev, extras):
     kit = version("prs")
-    now = set(e.get("name", e["id"]) for e in in_kit(extras))
+    now = set(e.get("name", e["id"]) for e in listed(extras))
     head = "### %s (%s)" % (tag, time.strftime("%Y-%m-%d"))
     if not prev:
         return head + "\nFirst official release: Artekka's %s plus %d extras." % (kit, len(now))
@@ -428,6 +428,11 @@ def live(extras):
 
 def in_kit(extras):
     return [e for e in extras if e.get("status") in ("Only mine", "Sent", "Changes asked")]
+
+
+def listed(extras):
+    """The extras a visitor is told about: in the kit, minus the README extra (it describes the list itself)."""
+    return [e for e in in_kit(extras) if e["id"] != README_EXTRA]
 
 
 def warn(text):

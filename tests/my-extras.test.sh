@@ -140,7 +140,7 @@ echo stray2 >> "$K/hud.ts"; q commit -qam "stray on prs"
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: refused with an unlisted change" 1 $?; has "release: names it" "stray on prs" "$out"
 q reset -q --hard HEAD~1
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: dry run passes the checks" 0 $?; has "release: plan shown" "tag prs" "$out"; has "release: first tag is v1.0.0" "v1.0.0" "$out"
-has "release: notes name the kit and the extras" "Orca-kit v1.0.0: Artekka's orchestration kit 1.1 plus 3 extras" "$out"; has "release: notes list an extra" "**Tabs**: tab colors" "$out"; has "release: page step shown" "Release page" "$out"; has "release: README step shown" "rewrite README's top block" "$out"; has "release: first entry" "First official release: Artekka's 1.1 plus 3 extras" "$out"
+has "release: notes name the kit and the extras" "Orca-kit v1.0.0: Artekka's orchestration kit 1.1 plus 2 extras" "$out"; has "release: notes list an extra" "**Tabs**: tab colors" "$out"; has "release: page step shown" "Release page" "$out"; has "release: README step shown" "rewrite README's top block" "$out"; has "release: first entry" "First official release: Artekka's 1.1 plus 2 extras" "$out"
 hasnt "release: dry run leaves README alone" "v1.0.0" "$(git -C "$K" show prs:README.md)"
 sed -i 's/^- what: tab colors$/- what: tab colors for zebrafinch/' "$K/MY-EXTRAS.md"
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: refused when the notes hold a private word" 1 $?; has "release: says notes" "release notes hold a private word" "$out"
@@ -150,7 +150,7 @@ printf 'a zebrafinch line\n' > "$TMP/note.md"; out="$("$PCK" file "$TMP/note.md"
 [ -z "$(git -C "$K" tag -l 'v1.*')" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: dry run made a tag"; }
 out="$(MY_EXTRAS_GATE=false "$X" release 2>&1)"; rc_is "release: refused on a red gate" 1 $?; has "release: says red" "gate is red" "$out"
 out="$("$X" release 2>&1)"; rc_is "release: succeeds" 0 $?; has "release: reports the tag" "released v1.0.0" "$out"; has "release: README written by the red-gate attempt, so already current" "already current on extra/fork-readme for v1.0.0" "$out"; has "release: page skipped offline" "skipped (no network)" "$out"
-rd="$(git -C "$K" show prs:README.md)"; has "readme: top names the release" "official release is **v1.0.0**, on Artekka's 1.1" "$rd"; has "readme: extras table" "| Tabs | tab colors |" "$rd"; has "readme: changelog entry" "### v1.0.0 (" "$rd"; has "readme: middle kept" "middle" "$rd"
+rd="$(git -C "$K" show prs:README.md)"; has "readme: top names the release" "official release is **v1.0.0**, on Artekka's 1.1" "$rd"; has "readme: extras table" "| Tabs | tab colors |" "$rd"; hasnt "readme: the readme extra is not listed" "| Fork README |" "$rd"; has "readme: changelog entry" "### v1.0.0 (" "$rd"; has "readme: middle kept" "middle" "$rd"
 [ "$(git -C "$K" rev-parse extra/fork-readme:README.md)" = "$(git -C "$K" rev-parse prs:README.md)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL readme: branch and prs differ"; }
 out="$("$X" check)"; rc_is "check: readme commits belong to the extra" 0 $?
 [ "$(git -C "$R" rev-parse extra/fork-readme)" = "$(git -C "$K" rev-parse extra/fork-readme)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: readme extra branch not pushed to the fork"; }
