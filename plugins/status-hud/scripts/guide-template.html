@@ -106,6 +106,13 @@ h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
         <button data-v="account">Its Claude account</button>
       </div>
     </div>
+    <div class="row" style="margin-bottom:12px">
+      <div><span class="label">Which picture at the top of the pane?</span><div class="hint">Only the pane layout (<code>/hud pane</code>) shows it; the band in the picture below has no room for one.</div></div>
+      <div class="seg" id="iconSeg" role="group" aria-label="Pane icon">
+        <button data-v="koi">Koi</button>
+        <button data-v="helmet">Horned helmet</button>
+      </div>
+    </div>
     <div class="hudwrap"><div class="hud" id="hud" aria-label="Sample status HUD with numbered items"></div></div>
     <p class="hint" style="margin:8px 0 0">Point at a number to see what it is; click it to jump to it in the list below, where you keep or remove it. A <b>grey, crossed-out number</b> is an item removed in your current settings: press Keep in the list to bring it back. Scroll sideways if the picture is wider than your window.</p>
   </div>
@@ -155,10 +162,11 @@ function tagFor(it) {
   t.textContent = k ? k[1] + ': ' + it.when : (it.when || 'Shown by default');
   return t;
 }
-const state = { dot: 'account', off: new Set(DEFAULT_OFF) };
+const state = { dot: 'account', icon: 'koi', off: new Set(DEFAULT_OFF) };
 function applyPreset(p) {
   if (!p) return;
   if (p.dotMode === 'project' || p.dotMode === 'account') state.dot = p.dotMode;
+  if (p.paneIcon === 'koi' || p.paneIcon === 'helmet') state.icon = p.paneIcon;
   const known = new Set(DATA.items.map(i => i.id));
   state.off = new Set(String(p.hideItems || '').split(',').map(s => s.trim()).filter(id => known.has(id)));
 }
@@ -281,17 +289,19 @@ function drawList() {
 }
 
 function choices() {
-  const o = { dotMode: state.dot, hideItems: DATA.items.filter(i => state.off.has(i.id)).map(i => i.id).join(',') };
+  const o = { dotMode: state.dot, paneIcon: state.icon, hideItems: DATA.items.filter(i => state.off.has(i.id)).map(i => i.id).join(',') };
   return 'Apply my status HUD choices (orchestration-kit: bash scripts/hud-guide.sh apply in the kit): ' + JSON.stringify(o);
 }
 function render() {
   hideTip(); drawHud(); drawList();
   document.querySelectorAll('#dotSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === state.dot)));
+  document.querySelectorAll('#iconSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === state.icon)));
   document.getElementById('out').textContent = choices();
 }
 function toggle(id) { if (state.off.has(id)) state.off.delete(id); else state.off.add(id); render(); }
 document.querySelectorAll('#dotSeg button').forEach(b => b.onclick = () => { state.dot = b.dataset.v; render(); });
-document.getElementById('reset').onclick = () => { state.dot = 'account'; state.off = new Set(DEFAULT_OFF); applyPreset(PRESET); render(); };
+document.querySelectorAll('#iconSeg button').forEach(b => b.onclick = () => { state.icon = b.dataset.v; render(); });
+document.getElementById('reset').onclick = () => { state.dot = 'account'; state.icon = 'koi'; state.off = new Set(DEFAULT_OFF); applyPreset(PRESET); render(); };
 document.getElementById('copy').onclick = async () => {
   const text = choices(); const t = document.getElementById('toast');
   try { await navigator.clipboard.writeText(text); }
@@ -307,7 +317,7 @@ if (SERVED) {
 document.getElementById('done').onclick = async () => {
   const t = document.getElementById('toast'), b = document.getElementById('done');
   b.disabled = true; t.className = 'toast'; t.textContent = 'Saving…';
-  const o = { dotMode: state.dot, hideItems: DATA.items.filter(i => state.off.has(i.id)).map(i => i.id).join(',') };
+  const o = { dotMode: state.dot, paneIcon: state.icon, hideItems: DATA.items.filter(i => state.off.has(i.id)).map(i => i.id).join(',') };
   try {
     const r = await fetch('apply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o) });
     const j = await r.json();

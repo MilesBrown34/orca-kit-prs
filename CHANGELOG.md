@@ -4,6 +4,8 @@ Newest first.
 
 ## Unreleased
 
+- **status-hud setup page: the pane's icon is a choice** (koi or horned helmet) beside the dot-colour choice; saved as `paneIcon` with the other choices.
+
 - **New, status HUD: project dots.** `dotMode: project` colors each session's dot by its project (the main checkout of its directory, so a sibling in its own worktree counts), so one HUD tells several projects' teams apart; the key row then names each project in its color and the sessions title counts projects. The color is the session's own tab color when its launcher set `CLAUDE_TAB_COLOR`, else the color the launcher recorded for the project in `<kitRuntimeDir>/tab-colors`, else the team block's `tab_color:`, else a fixed color from the project's name; a missing file is skipped. Other sessions' rows keep their project and color when read. Default `account`: the look does not change.
 - **New, status HUD: item switches.** `hideItems` turns off any drawn item by id (README: Items), e.g. `history,context-key`. Default: none.
 - **New, status HUD: a setup page.** `docs/status-hud-guide.html` draws the band for a sample in which every item shows, from the plugin's own layout code, with each item numbered on the picture: keep or remove each, pick what the dots mean, and press Copy my choices for one line. `bash scripts/hud-guide.sh open` shows it set to the current settings; `apply '<line>'` saves it through `claude plugin configure` (only `dotMode` and known `hideItems` ids); `build` regenerates the page after a layout change, and `tests/hud-guide.test.sh` fails while it is out of date. kit-init offers it after installing the HUD.

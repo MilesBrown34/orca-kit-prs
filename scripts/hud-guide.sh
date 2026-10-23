@@ -16,7 +16,7 @@
 #   hud-guide.sh build            (kit developers) rebuild docs/status-hud-guide.html from the HUD's drawing code
 #   hud-guide.sh check            (tests) exit 1 when docs/status-hud-guide.html is out of date
 # open and apply use `claude plugin configure status-hud@artekka-kits` (CLAUDE_CONFIG_DIR picks the account).
-# apply accepts only dotMode and hideItems with known item ids (the items this HUD draws); options it is not
+# apply accepts only dotMode, paneIcon and hideItems with known item ids (the items this HUD draws); options it is not
 # given keep their values. build and check need node 22.18 or later.
 # Exit 0 done, 1 failed or refused, 2 wait timed out, 64 usage.
 set -uo pipefail
@@ -68,7 +68,7 @@ case "${1:-}" in
 import json, sys
 try: i = json.load(sys.stdin).get("inputs", {})
 except Exception: print("null"); sys.exit()
-print(json.dumps({k: i.get(k, "") for k in ("dotMode", "hideItems")}))' 2>/dev/null)"
+print(json.dumps({k: i.get(k, "") for k in ("dotMode", "paneIcon", "hideItems")}))' 2>/dev/null)"
     [ -n "$preset" ] || preset=null
     # The shipped page with the preset swapped in: no node needed on the user's machine.
     PRESET="$preset" python3 -c '
@@ -114,6 +114,7 @@ known = set(filter(None, os.environ["IDS"].split(",")))
 out = {}
 for k, x in v.items():
     if k == "dotMode" and x in ("account", "project"): out[k] = x
+    elif k == "paneIcon" and x in ("koi", "helmet"): out[k] = x
     elif k == "hideItems" and isinstance(x, str):
         bad = [i for i in x.split(",") if i and i not in known]
         if bad: sys.exit("unknown item ids: " + ",".join(bad))

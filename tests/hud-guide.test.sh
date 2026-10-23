@@ -68,7 +68,7 @@ PY
 # open --file: a copy set to the current settings, opened in the browser as a file (Done = copy and paste).
 out="$(g open --file)"; rc_is "open --file: exit 0" 0 $?
 has "open --file: says where the page is" "$TMP/rt/hud-guide.html" "$out"
-has "open --file: preset from the current settings" 'const PRESET = {"dotMode": "project", "hideItems": "history,dot-key"};' "$(cat "$TMP/rt/hud-guide.html")"
+has "open --file: preset from the current settings" 'const PRESET = {"dotMode": "project", "paneIcon": "", "hideItems": "history,dot-key"};' "$(cat "$TMP/rt/hud-guide.html")"
 has "open --file: a browser was asked" "$TMP/rt/hud-guide.html" "$(cat "$TMP/opened" 2>/dev/null)"
 hasnt "open --file: the shipped page is untouched" "history,dot-key" "$(cat "$P")"
 hasnt "open --file: no server" "http://" "$out"
@@ -108,6 +108,8 @@ r="$(http POST "${url}apply" '{"dotMode":"project","hideItems":"history"}')"; ha
 has "served: saved for the default account" "acct=default" "$(cat "$TMP/accounts")"
 has "served: and for the other account" "acct=$TMP/acct 2" "$(cat "$TMP/accounts")"
 has "served: the choices" '"hideItems": "history"' "$(cat "$TMP/configured")"
+r="$(http POST "${url}apply" '{"dotMode":"project","paneIcon":"helmet","hideItems":""}')"; has "served: the pane icon saves" '"ok": true' "$r"; has "served: helmet reached configure" '"paneIcon": "helmet"' "$(cat "$TMP/configured")"
+r="$(http POST "${url}apply" '{"dotMode":"project","paneIcon":"dragon","hideItems":""}')"; has "served: an unknown icon is refused" '"ok": false' "$r"
 out="$(g wait 10)"; rc_is "wait: exit 0 after Done" 0 $?; has "wait: acknowledges the save" "Your HUD choices are saved." "$out"; hasnt "wait: no restart-everything line" "Restart Claude Code" "$out"
 sleep 1.5; r="$(http GET "$url" 2>&1)"; hasnt "served: stops after Done" "200 <!doctype" "$r"
 [ ! -e "$TMP/rt/hud-guide.url" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL the address file outlived the server"; }
