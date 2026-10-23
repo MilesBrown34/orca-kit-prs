@@ -132,7 +132,6 @@ sed -i '/^## Given to his kit/i ### fork-readme\n- name: Fork README\n- status: 
 # --- release: refusals first, then a real one against the bare fork
 export MY_EXTRAS_GATE=true
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: refused while his kit is newer" 1 $?; has "release: says update first" "new commit" "$out"
-out="$("$X" header)"; has "header: never released" "⚑ never released" "$out"
 q merge -q -X ours upstream/main -m "update: his 1.1"      # prs now holds his newest kit (-X ours: both appended to launch.sh)
 echo dirty >> "$K/hud.ts"
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: refused on a dirty tree" 1 $?; has "release: says uncommitted" "uncommitted" "$out"
@@ -156,10 +155,9 @@ rd="$(git -C "$K" show prs:README.md)"; has "readme: top names the release" "off
 out="$("$X" check)"; rc_is "check: readme commits belong to the extra" 0 $?
 [ "$(git -C "$R" rev-parse main)" = "$(git -C "$K" rev-parse prs)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: fork main is not prs"; }
 [ "$(git -C "$R" rev-parse v1.0.0^{commit})" = "$(git -C "$K" rev-parse prs)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: tag not on the fork"; }
-out="$("$X" header)"; hasnt "header: nothing due right after a release" "⚑" "$out"
-out="$("$X" news)"; has "news: official version shown" "Official version: v1.0.0 = prs" "$out"
+out="$("$X" news)"; has "news: official version shown" "Official version: v1.0.0." "$out"
 echo more2 > "$K/my-extras/x"; q commit -qam "tracking 3"
-out="$("$X" header)"; has "header: release due after a new commit" "⚑ release due" "$out"
+out="$("$X" header)"; hasnt "header: carries no release flag" "⚑" "$out"
 sed -i 's/^- status: Sent$/- status: Merged/' "$K/MY-EXTRAS.md"   # Dots went to his kit: the next entry says so
 out="$("$X" release 2>&1)"; rc_is "release: second release overwrites main" 0 $?; has "release: patch bump by default" "released v1.0.1" "$out"
 rd="$(git -C "$K" show prs:README.md)"; has "readme: second entry first" "### v1.0.1 (" "${rd%%### v1.0.0*}"; has "readme: entry says kit unchanged" "Artekka's kit still 1.1." "$rd"; has "readme: entry names the extra that left" "retired: Dots." "$rd"; hasnt "readme: table drops the merged extra" "| Dots |" "$rd"

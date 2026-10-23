@@ -24,7 +24,7 @@ Usage: my-extras <command>
            one-line descriptions, scanned by push-check first). Before the gate it rewrites the fork's own
            README blocks on branch extra/<MY_EXTRAS_README_EXTRA, default fork-readme> (the top block: version,
            Artekka's version, the extras table; the changelog block at the end: one entry per release) and
-           merges that branch into prs. The header shows ⚑ release due while the newest tag is not at prs.
+           merges that branch into prs.
 Env: MY_EXTRAS_REPO (default: this script's repo), MY_EXTRAS_UPSTREAM (default upstream/main),
      MY_EXTRAS_ORIGIN (default origin: the fork), MY_EXTRAS_OFFICIAL (default main),
      MY_EXTRAS_NO_NET=1 (never fetch or call gh; tests), MY_EXTRAS_GH_REPO (default Artekka/claude-orchestration-kit).
@@ -453,8 +453,6 @@ def cmd_header():
     stray = stray_commits()
     if stray:
         line += "   " + warn("⚠ %d unlisted change%s" % (len(stray), "" if len(stray) == 1 else "s"))
-    if release_due():
-        line += "   " + warn("⚑ release due" if release_tags() else "⚑ never released")
     print(line)
     sys.stdout.flush()
     if stamp_old("my-extras-refresh") and not NO_NET:
@@ -494,12 +492,7 @@ def cmd_news():
         for s in stray:
             print("  " + s)
     tags = release_tags()
-    if not tags:
-        print("Official version: none yet (my-extras/my-extras release).")
-    elif release_due():
-        print("Official version: %s, behind prs (my-extras/my-extras release when ready)." % tags[0])
-    else:
-        print("Official version: %s = prs." % tags[0])
+    print("Official version: %s." % (tags[0] if tags else "none yet (my-extras/my-extras release)"))
 
 
 def cmd_status():
