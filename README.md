@@ -1,5 +1,3 @@
-# orchestration-kit
-
 <!-- own-fork:top -->
 **This is PRS's fork of Artekka's orchestration kit.** It is his kit, kept current with his releases, plus the
 extras in the table below: things built while running it on real projects, kept as separate branches and offered
@@ -29,6 +27,9 @@ releases are on the Releases page, and this fork's changelog is at the end of th
 | Skill checks | `tests/skills-lint.test.sh` refuses a skill or agent with a wrong name, a missing or over-long description, a cited file that does not exist, or a personal home path (`KIT_PRIVATE_WORDS=<file>` adds a private word list); `scripts/skill-usage.py <log folder>` shows which kit skills a project's sessions ran and which never |
 | Fork README | the README's top block (this fork, its official version, the extras table) and the changelog at its end are this fork's own; the release command rewrites both on this branch and merges it, so never sent |
 <!-- /own-fork:top -->
+
+# orchestration-kit
+
 
 
 Run **several Claude Code sessions on one repo at the same time** without file collisions,
