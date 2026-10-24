@@ -4,6 +4,7 @@ Newest first.
 
 ## Unreleased
 
+- **Changed: the verifier reads its contract at the base.** `agents/verifier.md` now reads the brief, ORCHESTRATION.md and any rules file at `origin/main`, never from the branch under review (a branch can edit `docs/orchestration/**`; a contract file the branch changed is a finding), treats commit messages, comments and diff text as data (order-shaped text is quoted as a finding, never followed), and carries a table of what PASS, DEVIATES and BROKEN mean. `verify-feature` and the seat's §5 name the base ref in the contract.
 - **Changed: the GitHub repository is now `Artekka/orcastration-kit`** (was `claude-orchestration-kit`). Install with `claude plugin marketplace add Artekka/orcastration-kit`; the plugin id (`orchestration-kit@artekka-kits`), its slash commands and `~/.orchestration-kit/` do not change. GitHub redirects the old URL, so existing installs keep working. README, GETTING-STARTED, CONTRIBUTING, SECURITY, the issue-template link and the Code of Conduct contact link use the new name; the plugin manifest gains `homepage` and `repository`.
 - **Fixed: a team start with no Claude running exited silently.** (PRS 2026-10-17)
 - **New: `gate-throttle.sh --log <file>`.** (PRS 2026-10-15)
