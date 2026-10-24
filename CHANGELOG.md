@@ -4,6 +4,7 @@ Newest first.
 
 ## Unreleased
 
+- **New: a secrets guard.** `hooks/secrets-guard.sh` (PreToolUse on Read, Grep and Bash; opt-in by the `.kit-hooks` marker) refuses reading, searching or naming in a command any path the project lists under `never_read:` in ORCHESTRATION.md → Secrets (key stores, token files, their locked copies), with a one-line reason that sends the session to the human for the key. The list is the switch: no entries, no guard. `~` means home, a directory covers what is beneath it, `*` entries are patterns. A speed bump, not a sandbox. Tests: `tests/secrets-guard.test.sh`.
 - **Changed: the GitHub repository is now `Artekka/orcastration-kit`** (was `claude-orchestration-kit`). Install with `claude plugin marketplace add Artekka/orcastration-kit`; the plugin id (`orchestration-kit@artekka-kits`), its slash commands and `~/.orchestration-kit/` do not change. GitHub redirects the old URL, so existing installs keep working. README, GETTING-STARTED, CONTRIBUTING, SECURITY, the issue-template link and the Code of Conduct contact link use the new name; the plugin manifest gains `homepage` and `repository`.
 - **Fixed: a team start with no Claude running exited silently.** (PRS 2026-10-17)
 - **New: `gate-throttle.sh --log <file>`.** (PRS 2026-10-15)
