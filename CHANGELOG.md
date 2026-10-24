@@ -4,6 +4,7 @@ Newest first.
 
 ## Unreleased
 
+- **New: rules by path, and a project review checklist.** Project conventions that bind only some files go in `.claude/rules/<area>.md` with a `paths:` list (Claude Code loads such a file only when a session touches a matching file, so conventions stop costing every turn): `templates/rules/example.md` to copy, a Rules column in ORCHESTRATION.md's change-class table, "Rules in force" on every brief, and the verifier reads them at `origin/main` (an unauthorized departure is a deviation); kit-init asks once. ORCHESTRATION.md gains a **Review checklist** section: one line per mistake that repeated on this project, appended by retro, checked by the verifier on every row. Both empty = nothing changes.
 - **Changed: the GitHub repository is now `Artekka/orcastration-kit`** (was `claude-orchestration-kit`). Install with `claude plugin marketplace add Artekka/orcastration-kit`; the plugin id (`orchestration-kit@artekka-kits`), its slash commands and `~/.orchestration-kit/` do not change. GitHub redirects the old URL, so existing installs keep working. README, GETTING-STARTED, CONTRIBUTING, SECURITY, the issue-template link and the Code of Conduct contact link use the new name; the plugin manifest gains `homepage` and `repository`.
 - **Fixed: a team start with no Claude running exited silently.** (PRS 2026-10-17)
 - **New: `gate-throttle.sh --log <file>`.** (PRS 2026-10-15)

@@ -36,7 +36,7 @@ git fetch origin || { sleep 2; git fetch origin; } && git rebase origin/main
 
 Every ask (human plain language, external tracker, issue queue) becomes a row under your prefix. The board line carries **status only**; the **brief goes to the builder by message** (a narrative board briefs its own verifiers).
 
-**Row brief = a file**, `docs/orchestration/briefs/<ROW>.md`, from `${CLAUDE_PLUGIN_ROOT}/templates/briefs/_TEMPLATE.md` (goal · numbered acceptance · fence · seam map from your own Explore pass · base branch · gate · **model/effort** · report protocol). **Commit + push it BEFORE the assign message**, which then only names the file. The builder starts with `/orchestration-kit:orient-brief <ROW>` (the brief + banner arrive injected; no project orient); the verifier reads the brief + the diff. Keep it contract-only — a brief that narrates your reasoning briefs your own verifiers.
+**Row brief = a file**, `docs/orchestration/briefs/<ROW>.md`, from `${CLAUDE_PLUGIN_ROOT}/templates/briefs/_TEMPLATE.md` (goal · numbered acceptance · fence **+ the rules files in force** (ORCHESTRATION.md → Change classes, by the row's paths; the verifier reads them at `origin/main`) · seam map from your own Explore pass · base branch · gate · **model/effort** · report protocol). **Commit + push it BEFORE the assign message**, which then only names the file. The builder starts with `/orchestration-kit:orient-brief <ROW>` (the brief + banner arrive injected; no project orient); the verifier reads the brief + the diff. Keep it contract-only — a brief that narrates your reasoning briefs your own verifiers.
 Every brief is a hypothesis — a builder correcting it upward is expected, not insubordination.
 
 | Brief rule | Why |

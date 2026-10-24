@@ -31,15 +31,22 @@ throttle:     bash scripts/gate-throttle.sh <command>   (host-wide slots: `gate_
 
 ## Change classes
 
-Path patterns → risk class → extra gate + verifier escalation. Classes listed here as
-high-risk get an AUTO independent verification before reconcile.
+Path patterns → risk class → extra gate + verifier escalation + the rules file in force. Classes listed
+here as high-risk get an AUTO independent verification before reconcile.
 
-| Path pattern | Class | Extra gate | Verifier model |
-|---|---|---|---|
-| `<e.g. src/engine/**>` | `<e.g. golden-critical>` | `<e.g. goldens byte-identical>` | strongest available |
-| `<e.g. **/migrations/**, schema files>` | `migration` | `<boot/constraint check>` | strongest available |
-| `<e.g. billing/auth paths>` | `economy` / `security` | `<value/path tracing>` | strongest available |
-| everything else | `standard` | — | default strong model |
+| Path pattern | Class | Extra gate | Verifier model | Rules file |
+|---|---|---|---|---|
+| `<e.g. src/engine/**>` | `<e.g. golden-critical>` | `<e.g. goldens byte-identical>` | strongest available | `<e.g. .claude/rules/engine.md>` |
+| `<e.g. **/migrations/**, schema files>` | `migration` | `<boot/constraint check>` | strongest available | — |
+| `<e.g. billing/auth paths>` | `economy` / `security` | `<value/path tracing>` | strongest available | — |
+| everything else | `standard` | — | default strong model | — |
+
+**Rules by path.** Project conventions that apply only to some files live in `.claude/rules/<area>.md`
+with a `paths:` list in their frontmatter: Claude Code loads such a file only when a session touches a
+matching file, so conventions stop costing every turn of every session (the always-loaded CLAUDE.md
+keeps the rules that bind everywhere). The kit ships `templates/rules/example.md` to copy. The seat names
+the rules in force on each brief (Fence); the verifier reads them at `origin/main` and treats an
+undocumented departure as a deviation. No rules files = nothing changes.
 
 ## Deploy
 
@@ -152,6 +159,14 @@ validator:      <e.g. Check — or "none: any non-builder sibling READs">
 lanes:          READ · re-read · train/merge verification · falsification · measurement
 never:          build or fix rounds (a validator that builds loses its independence)
 ```
+
+## Review checklist
+
+Project-specific lines the verifier checks every row against, and retro appends to: one line per mistake
+that has repeated here (the rule, never the story; the story goes to memory). Empty = nothing extra.
+
+- `<e.g. every submit path guards against a second request while one is running>`
+- `<e.g. a change that adds test output gets one pass through the real gate stage before hand-off>`
 
 ## Test hazards
 
