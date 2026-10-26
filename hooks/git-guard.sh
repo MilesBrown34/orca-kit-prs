@@ -7,6 +7,8 @@
 #   git add -A | --all | . | :/   and   git add -u with no pathspec - stages other sessions' files
 #   git commit -a | --all | -am ... - same, at commit time
 #   git pull --rebase | -r   - races on the shared .git/FETCH_HEAD
+#   git push -f | --force | --force-with-lease | --mirror | +<refspec>
+#                            - rewrites a shared branch; work another session built on it is lost
 #
 # NO-OP (exit 0, no output) unless ALL hold:
 #   - the session's repo carries the opt-in marker docs/orchestration/.kit-hooks;
@@ -144,6 +146,29 @@ function check(   k, w, sub_, j, a, dd, upd, np, skip, m, ch, base) {
         }
       }
     }
+    return
+  }
+  if (sub_ == "push") {
+    skip = 0; dd = 0
+    for (j = k + 1; j <= nw; j++) {
+      a = W[j]
+      if (skip) { skip = 0; continue }
+      if (!dd && a == "--") { dd = 1; continue }
+      if (!dd && substr(a, 1, 2) == "--") {
+        if (a == "--force" || a == "--mirror" || a ~ /^--force-with-lease(=|$)/) { hit("push-force"); return }
+        if (a == "--repo" || a == "--push-option" || a == "--receive-pack" || a == "--exec") skip = 1
+        continue
+      }
+      if (!dd && a ~ /^-./) {
+        for (m = 2; m <= length(a); m++) {
+          ch = substr(a, m, 1)
+          if (ch == "f") { hit("push-force"); return }
+          if (ch == "o") { if (m == length(a)) skip = 1; break }
+        }
+        continue
+      }
+      if (substr(a, 1, 1) == "+") { hit("push-force"); return }
+    }
   }
 }
 function tokenize(t,   i, L, c, n, nl, line, d, q, sp) {
@@ -218,6 +243,7 @@ case "$rule" in
   stash) why="git stash is blocked: stash refs are shared by every worktree of this repo, so one session's stash or pop can take another session's work. Instead commit your WIP on your own branch (git commit -m wip, later git reset --soft HEAD~1) or copy the files to a scratch directory. git stash list and git stash show stay allowed." ;;
   add-all) why="Staging everything is blocked (git add -A / --all / . / :/ / -u without paths): in a repo shared by several sessions it stages other sessions' uncommitted files into your commit. Stage explicit paths instead: git add path/to/file another/file." ;;
   commit-all) why="git commit -a / --all is blocked: it commits every modified tracked file, including other sessions' work in progress. Stage explicit paths, then commit: git add path/to/file && git commit -m msg." ;;
+  push-force) why="A force-push is blocked (git push -f / --force / --force-with-lease / --mirror / a +branch refspec): it rewrites a branch other sessions may have pulled, reviewed or built on, and their work silently drops off it. Instead push the rewritten work as a new branch (git push origin HEAD:<branch>-r2) and tell whoever coordinates, or add your commits on top of the pushed branch (git merge origin/main) so the push stays a fast-forward." ;;
   pull-rebase) why="git pull --rebase is blocked: sessions sharing one .git race on .git/FETCH_HEAD (Cannot rebase onto multiple branches). Use: git fetch origin && git rebase origin/main (retry the fetch once if it reports cannot lock ref)." ;;
   *) exit 0 ;;
 esac
