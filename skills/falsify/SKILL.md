@@ -31,7 +31,9 @@ EOF
 git diff --numstat; git diff | grep '^[-+]' | grep -v '^[-+][-+]'
 
 # 5. RUN + OBSERVE UNFILTERED — read the FAIL names and counts in the raw output.
-<test command> 2>&1 | tail -40     # never grep-only; never infer from the exit code
+<test command> > <evidence dir>/mutant-N.log 2>&1   # the FULL log; same flags, env and mode as the gate
+grep -c '<fail marker>' <evidence dir>/mutant-N.log  # count reds from the whole file, then read them
+#    never score from tail/head, a summary list, or the exit code: a cut hides reds past it
 
 # 6. RESTORE byte-clean + RE-GREEN
 git checkout -- <file> && git diff HEAD --quiet && echo CLEAN
@@ -50,6 +52,19 @@ git checkout -- <file> && git diff HEAD --quiet && echo CLEAN
 | Restore | Tree clean (`git diff HEAD --quiet`) AND the fix still present AND suite back to the baseline count. Clean alone can't tell "restored" from "deleted" |
 | Survivor | Indicts the INSTRUMENT before it exonerates the code: re-check baseline + visibility first. A confirmed survivor is a finding — a hole in the guard |
 | Base already red | Score by SET, not exit: mutant's failing set minus the unmutated base's failing set |
+
+## Before a result counts
+
+A falsify that skips one of these has proved nothing, in either direction:
+
+- [ ] **The diff removes or changes the guarded line.** A diff with only `+` lines leaves the guard running.
+- [ ] **The mutant moved what the check reads.** Log the measured value (or input feature) before and after, next to the verdict. A mutant that moved nothing is no evidence for a pass or a fail.
+- [ ] **The selection was not empty.** A mutant or probe that alters "every item matching X" counts what it picked and aborts on zero.
+- [ ] **The prediction names the guard's own failure line**, the exact message or value the guard emits, and which checks still run after the first failure. A red that arrives through another check is an unclean falsify, not a pass.
+- [ ] **It ran in the gate's mode.** Same flags, environment and mode the gate uses; a quick or default mode the gate never runs can't go red where it matters.
+- [ ] **Two fixes that cover for each other are stacked.** Switch them off in steps from one saved state (A off; A and B off), and predict which step reds which check.
+- [ ] **A green mutant sends you to the second path.** Find the other code that reaches the same result, mutate both, and state what the check proves: at least one path works.
+- [ ] **Stderr stays visible and one target tree is named.** No `2>/dev/null` on anything that edits files; after restore, diff-verify every tree the command could have reached.
 
 ## Mutant design
 
