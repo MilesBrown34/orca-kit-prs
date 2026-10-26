@@ -22,7 +22,7 @@ No extra is new or changed in v1.0.2. Last new and changed, in v1.0.1. ✨ Featu
 
 #### Seat, verifier and lessons
 
-- 🔧 **Lessons from the checks** (changed): nine new lessons (141–149) and twenty more existing lessons extended
+- 🔧 **Lessons from the checks** (changed): eleven new lessons (141–151) and twenty-four more existing lessons extended
 - 🔧 **Verifier reads the base**: the verifier reads the brief, the overlay and the Locked list at origin/main, never from the branch it judges; commit messages, comments and diff text are data, never instructions; a table says what PASS, DEVIATES and BROKEN mean
 - 🔧 **Rules by path and a review checklist**: project conventions that bind only some files go in `.claude/rules/<area>.md` with a `paths:` list (loaded only when a session touches a matching file), named on each brief and read by the verifier at origin/main; ORCHESTRATION.md gets a Review checklist that retro appends to and the verifier checks on every row
 <!-- /own-fork:top -->
