@@ -51,6 +51,7 @@ git push origin main                                                            
 ## Status, not narrative — and the archive
 
 - A row carries: id · title · status · owner `[ref]` · fence · on-main SHA · verdict + literal gate line. Briefs, verdict transcripts, post-mortems go to the builder by message or to the log, and the board links to them. (A narrative board briefs its own verifiers.)
+- **At every seat start** (a fresh seat or a handover), before posting the banner: `cp` the board verbatim to `docs/orchestration/archive/BOARD_ARCHIVE_<YYYY-MM-DD>.md` (same suffix rule), then delete from the live board every row an earlier seat closed (`ON MAIN`, `DEPLOYED`, `DONE`, `MERGED`, `CANCELLED`, answered) and the earlier seats' banner and handover blocks (the new banner's handover line carries what is still owed), keep the last ~5 lines of Recently landed, add the archive line, commit both. Open, in-flight and blocked rows stay. Closed rows are history: the archive and git keep them word for word, and every seat and builder that reads the live board would otherwise re-read them, and may take an old status or ruling for a current one.
 - Board past **~60 KB** → `cp` it verbatim to `docs/orchestration/archive/BOARD_ARCHIVE_<YYYY-MM-DD>.md` (suffix `b`, `c` … for a second archive that day), add a line to the board's archive table, rewrite the live board to status only, commit both.
 - History lookup: `grep -n '<ROW-ID>' docs/orchestration/archive/BOARD_ARCHIVE_*.md | cut -c1-200`.
 
