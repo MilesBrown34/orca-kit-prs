@@ -268,7 +268,7 @@ def changed_since(e, prev_ids):
     return any(patch_id(s) not in prev_ids for s in git("rev-list", "--no-merges", UP + ".." + br).splitlines())
 
 
-def release_rows(tag, prev, extras):
+def release_rows(tag, prev, extras, strict=True):
     """(extra, kind, text, changed) for each extra new since the last release or changed in this one.
     A change git sees with no `changed:` line for this release is refused: the table would describe the wrong thing."""
     readme = set(ename(e) for e in extras if e["id"] == README_EXTRA)
@@ -282,7 +282,7 @@ def release_rows(tag, prev, extras):
         elif note:
             if note[0] != "none":
                 rows.append((e, note[0], note[1], True))
-        elif changed_since(e, prev_ids):
+        elif strict and changed_since(e, prev_ids):
             missing.append(e["id"])
     if missing:
         raise SystemExit("release refused: changed since %s with no note for %s: %s.\n  Add `- changed: %s <%s>: <what changed>` to each one's Details in MY-EXTRAS.md (`- changed: %s none` when it was only refitted)."
@@ -292,6 +292,17 @@ def release_rows(tag, prev, extras):
 
 EMOJI = {"Feature": "✨", "Fix": "🐛", "Update": "🔧"}
 KIND_KEY = "✨ Feature: something new to use or see · 🐛 Fix: something broken, repaired · 🔧 Update: a change to how the workflow runs"
+
+
+def carried_rows(tag, prev, extras, rows):
+    """A release with nothing new shows the last release's list instead, so the front page never goes blank:
+    (that tag, its rows), or None."""
+    if rows or not prev:
+        return None
+    tags = release_tags()
+    before = tags[tags.index(prev) + 1] if prev in tags and tags.index(prev) + 1 < len(tags) else ""
+    old = release_rows(prev, before, extras, strict=False)
+    return (prev, old) if old else None
 
 
 def grouped_bullets(rows, level, tail=lambda r: ""):
@@ -319,7 +330,7 @@ def release_notes(tag, extras, rows):
     return "\n".join(lines) + "\n"
 
 
-def readme_top(tag, extras, rows):
+def readme_top(tag, prev, extras, rows):
     n = len(listed(extras))
     lines = [
         TOP_A,
@@ -333,7 +344,11 @@ def readme_top(tag, extras, rows):
         lines += ["New and changed in %s. %s." % (tag, KIND_KEY), ""]
         lines += grouped_bullets(rows, "####")
     else:
+        carried = carried_rows(tag, prev, extras, rows)
         lines += ["No extra is new or changed in %s." % tag, ""]
+        if carried:
+            lines[-2] += " Last new and changed, in %s. %s." % (carried[0], KIND_KEY)
+            lines += grouped_bullets(carried[1], "####")
     return "\n".join(lines).rstrip("\n") + "\n" + TOP_Z
 
 
@@ -401,7 +416,7 @@ def update_readme(tag, prev, extras, rows, dry):
             raise SystemExit("release refused: README.md on %s lacks the own-fork markers (%s … %s and %s … %s)" % (br, TOP_A, TOP_Z, LOG_A, LOG_Z))
         pre, rest = text.split(TOP_A, 1)
         _, post = rest.split(TOP_Z, 1)
-        text = pre + readme_top(tag, extras, rows) + post
+        text = pre + readme_top(tag, prev, extras, rows) + post
         pre, rest = text.split(LOG_A, 1)
         block, post = rest.split(LOG_Z, 1)
         block = re.sub(r"\n### %s \(.*?\)\n.*?(?=\n### |\n?$)" % re.escape(tag), "", block, flags=re.S)   # same tag again: replace
@@ -451,7 +466,7 @@ def prepare(bump, who):
     nf = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False)
     nf.write(notes); nf.close()
     public = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False)   # everything this writes for visitors
-    public.write(readme_top(tag, extras, rows) + "\n" + extras_page(tag, extras)); public.close()
+    public.write(readme_top(tag, prev, extras, rows) + "\n" + extras_page(tag, extras)); public.close()
     scan = subprocess.run([os.path.join(HERE, "push-check"), "file", nf.name, public.name], capture_output=True, text=True)
     os.unlink(public.name)
     if scan.returncode != 0:
