@@ -21,10 +21,15 @@ Usage: my-extras <command>
            Artekka's version goes in the title and notes), pushes prs,
            overwrites the fork's official branch (MY_EXTRAS_OFFICIAL, default main, with --force-with-lease),
            pushes the tag and makes a GitHub Release page on the fork (notes = the kit version and the extras'
-           one-line descriptions, scanned by push-check first). Before the gate it rewrites the fork's own
+           new and changed extras, scanned by push-check first). Before the gate it rewrites the fork's own
            README blocks on branch extra/<MY_EXTRAS_README_EXTRA, default fork-readme> (the top block: version,
-           Artekka's version, the extras table; the changelog block at the end: one entry per release) and
-           merges that branch into prs.
+           Artekka's version, a link to EXTRAS.md, and tables by group of the extras new or changed since the
+           last release; the changelog block at the end: one entry per release) and EXTRAS.md (every extra:
+           group, kind, what it does, the release that first carried it), and merges that branch into prs.
+           Each listed extra needs `group:` and `kind:` (Feature, Fix or Update) in its Details; one that
+           changed since the last release needs `changed: <new tag> <Kind>: <what changed>` (or `<tag> none`).
+  preview [--minor|--major]   the release's checks and its README/EXTRAS.md rewrite onto prs, nothing pushed
+           and no tag: read the pages on prs first, then release.
 Env: MY_EXTRAS_REPO (default: this script's repo), MY_EXTRAS_UPSTREAM (default upstream/main),
      MY_EXTRAS_ORIGIN (default origin: the fork), MY_EXTRAS_OFFICIAL (default main),
      MY_EXTRAS_NO_NET=1 (never fetch or call gh; tests), MY_EXTRAS_GH_REPO (default Artekka/claude-orchestration-kit).
@@ -203,74 +208,189 @@ def fork_repo():
     return m.group(1) if m else ""
 
 
-def release_notes(tag, extras):
-    kit = version("prs")
-    live = listed(extras)
-    lines = ["Orca-kit %s: Artekka's orchestration kit %s plus %d extra%s." % (tag, kit, len(live), "" if len(live) == 1 else "s"), ""]
-    for e in live:
-        lines.append("- **%s**: %s" % (e.get("name", e["id"]), e.get("what", "")))
-    lines += ["", "Install: `claude plugin marketplace add <this repository>` then `claude plugin install orchestration-kit@artekka-kits`.",
+KINDS = ("Feature", "Fix", "Update")
+EXTRAS_PAGE = "EXTRAS.md"   # the public list, written on the readme extra's branch from MY-EXTRAS.md's public fields only
+
+
+def ename(e):
+    return e.get("name", e["id"])
+
+
+def cell(text):
+    return text.replace("|", "\\|")
+
+
+def check_fields(extras):
+    """Every extra a visitor is told about carries a group and a kind; refuse, never guess one."""
+    bad = []
+    for e in listed(extras):
+        if not e.get("group"):
+            bad.append("%s has no group" % e["id"])
+        if e.get("kind") not in KINDS:
+            bad.append("%s's kind is %r (want one of %s)" % (e["id"], e.get("kind", ""), ", ".join(KINDS)))
+    if bad:
+        raise SystemExit("release refused: every listed extra needs `- group:` and `- kind:` in MY-EXTRAS.md:\n  " + "\n  ".join(bad))
+
+
+def change_for(e, tag):
+    """(kind, text) from a `changed: <tag> <Kind>: <text>` line written for this release, ("none", "") for
+    `changed: <tag> none` (refitted only), None when the line is missing or names another release."""
+    m = re.match(r"^(v\d+\.\d+\.\d+)\s+(.*)$", e.get("changed", ""))
+    if not m or m.group(1) != tag:
+        return None
+    if m.group(2).strip() == "none":
+        return ("none", "")
+    k = re.match(r"^(%s):\s*(\S.*)$" % "|".join(KINDS), m.group(2))
+    if not k:
+        raise SystemExit("release refused: %s's changed line must read `changed: %s <%s>: <what changed>` (or `changed: %s none`); it reads: %s"
+                         % (e["id"], tag, "|".join(KINDS), tag, e["changed"]))
+    return (k.group(1), k.group(2).strip())
+
+
+def names_at(ref):
+    """The extra names a release told visitors about: its EXTRAS.md, else (before that page existed) its README table."""
+    text = git("show", "%s:%s" % (ref, EXTRAS_PAGE), check=False)
+    if not text:
+        text = git("show", "%s:README.md" % ref, check=False)
+        if TOP_A not in text:
+            return set()
+        text = text.split(TOP_A, 1)[1].split(TOP_Z, 1)[0]
+    return set(m.group(1).strip() for m in re.finditer(r"^\| ([^|]+?) \| ", text, re.M)) - {"Extra"}
+
+
+def patch_ids_in(ref):
+    """The changes a release held beyond Artekka's kit, by content (a refit keeps a clean change's id)."""
+    return set(patch_id(s) for s in git("rev-list", "--no-merges", ref, "--not", git("merge-base", ref, UP)).splitlines())
+
+
+def changed_since(e, prev_ids):
+    br = "extra/" + e["id"]
+    if not git("rev-parse", "--verify", "-q", br, check=False):
+        return False
+    return any(patch_id(s) not in prev_ids for s in git("rev-list", "--no-merges", UP + ".." + br).splitlines())
+
+
+def release_rows(tag, prev, extras):
+    """(extra, kind, text, changed) for each extra new since the last release or changed in this one.
+    A change git sees with no `changed:` line for this release is refused: the table would describe the wrong thing."""
+    readme = set(ename(e) for e in extras if e["id"] == README_EXTRA)
+    before = (names_at(prev) - readme) if prev else set()
+    prev_ids = patch_ids_in(prev) if prev else set()
+    rows, missing = [], []
+    for e in listed(extras):
+        note = change_for(e, tag)
+        if ename(e) not in before:
+            rows.append((e, e["kind"], e.get("what", ""), False))
+        elif note:
+            if note[0] != "none":
+                rows.append((e, note[0], note[1], True))
+        elif changed_since(e, prev_ids):
+            missing.append(e["id"])
+    if missing:
+        raise SystemExit("release refused: changed since %s with no note for %s: %s.\n  Add `- changed: %s <%s>: <what changed>` to each one's Details in MY-EXTRAS.md (`- changed: %s none` when it was only refitted)."
+                         % (prev, tag, ", ".join(missing), tag, "|".join(KINDS), tag))
+    return rows
+
+
+def grouped_tables(rows, level, cols, fmt):
+    """One table per group, the groups in the order they first appear in MY-EXTRAS.md."""
+    by = {}
+    for r in rows:
+        by.setdefault(r[0].get("group"), []).append(r)
+    out = []
+    for g, rs in by.items():
+        out += ["%s %s" % (level, g), "", "| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)] + [fmt(r) for r in rs] + [""]
+    return out
+
+
+KIND_KEY = "Feature: something new to use or see · Fix: something broken, repaired · Update: a change to how the workflow runs"
+
+
+def release_notes(tag, extras, rows):
+    n = len(listed(extras))
+    lines = ["Orca-kit %s: Artekka's orchestration kit %s plus %d extra%s; every one is described in %s." % (tag, version("prs"), n, "" if n == 1 else "s", EXTRAS_PAGE), ""]
+    if rows:
+        lines += ["New and changed in this release (%s):" % KIND_KEY, ""]
+        lines += grouped_tables(rows, "####", ["Extra", "Kind", "What's new"], lambda r: "| %s | %s | %s |" % (cell(ename(r[0]) + (" (changed)" if r[3] else "")), r[1], cell(r[2])))
+    else:
+        lines += ["No extra is new or changed in this release.", ""]
+    lines += ["Install: `claude plugin marketplace add <this repository>` then `claude plugin install orchestration-kit@artekka-kits`.",
               "The extras' own notes are in CHANGELOG.md under Unreleased; everything else is Artekka's kit as released."]
     return "\n".join(lines) + "\n"
 
 
-def extras_table(extras):
-    rows = ["| Extra | What it does |", "|---|---|"]
-    for e in listed(extras):
-        rows.append("| %s | %s |" % (e.get("name", e["id"]).replace("|", "\\|"), e.get("what", "").replace("|", "\\|")))
-    return "\n".join(rows)
-
-
-def readme_top(tag, extras):
+def readme_top(tag, extras, rows):
     n = len(listed(extras))
-    return "\n".join([
+    lines = [
         TOP_A,
-        "**This is PRS's fork of Artekka's orchestration kit.** It is his kit, kept current with his releases, plus the",
-        "extras in the table below: things built while running it on real projects, kept as separate branches and offered",
-        "to him one at a time. Install this fork to get all of them. The official release is **%s**, on Artekka's %s;" % (tag, version("prs")),
-        "releases are on the Releases page, and this fork's changelog is at the end of this file (%d extra%s)." % (n, "" if n == 1 else "s"),
+        "**This is PRS's fork of Artekka's orchestration kit.** It is his kit, kept current with his releases, plus %d" % n,
+        "extra%s: things built while running it on real projects, kept as separate branches and offered to him one at a time." % ("" if n == 1 else "s"),
+        "Install this fork to get all of them; **[the full list of extras](%s)** says what each one does." % EXTRAS_PAGE,
+        "The official release is **%s**, on Artekka's %s; releases are on the Releases page, and this fork's changelog is at" % (tag, version("prs")),
+        "the end of this file.",
+        ""]
+    if rows:
+        lines += ["New and changed in %s (%s):" % (tag, KIND_KEY), ""]
+        lines += grouped_tables(rows, "####", ["Extra", "Kind", "What's new"], lambda r: "| %s | %s | %s |" % (cell(ename(r[0]) + (" (changed)" if r[3] else "")), r[1], cell(r[2])))
+    else:
+        lines += ["No extra is new or changed in %s." % tag, ""]
+    return "\n".join(lines).rstrip("\n") + "\n" + TOP_Z
+
+
+def since_map(extras, tag):
+    """Each extra's first release: the oldest of our releases that told visitors about it, else this one."""
+    seen = {}
+    for t in reversed(release_tags()):
+        for name in names_at(t):
+            seen.setdefault(name, t)
+    return dict((ename(e), seen.get(ename(e), tag)) for e in listed(extras))
+
+
+def extras_page(tag, extras):
+    n, since = len(listed(extras)), since_map(extras, tag)
+    lines = [
+        "# Extras",
         "",
-        extras_table(extras),
-        TOP_Z])
+        "Every extra this fork adds to Artekka's orchestration kit, as of **%s** (on Artekka's %s): %d in all. Each one is" % (tag, version("prs"), n),
+        "kept as its own branch (`extra/<id>`) and offered to him on its own. Kinds: **Feature**, something new to use or",
+        "see; **Fix**, something broken, repaired; **Update**, a change to how the workflow runs (lessons, gates, checks).",
+        "Since: the release that first carried it. The release writes this page; the README shows what each release changed.",
+        ""]
+    rows = [(e, e["kind"], e.get("what", ""), False) for e in listed(extras)]
+    lines += grouped_tables(rows, "##", ["Extra", "Kind", "What it does", "Since"], lambda r: "| %s | %s | %s | %s |" % (cell(ename(r[0])), r[1], cell(r[2]), since[ename(r[0])]))
+    return "\n".join(lines).rstrip("\n") + "\n"
 
 
-def readme_names_at(ref):
-    """The extra names the README's table carried at a ref (empty when it had no block)."""
-    text = git("show", "%s:README.md" % ref, check=False)
-    if TOP_A not in text:
-        return set()
-    block = text.split(TOP_A, 1)[1].split(TOP_Z, 1)[0]
-    return set(m.group(1).strip() for m in re.finditer(r"^\| ([^|]+) \| ", block, re.M)) - {"Extra"}
-
-
-def readme_log_entry(tag, prev, extras):
+def readme_log_entry(tag, prev, extras, rows):
     kit = version("prs")
-    now = set(e.get("name", e["id"]) for e in listed(extras))
+    now = set(ename(e) for e in listed(extras))
     head = "### %s (%s)" % (tag, time.strftime("%Y-%m-%d"))
     if not prev:
         return head + "\nFirst official release: Artekka's %s plus %d extras." % (kit, len(now))
     old_kit = version(prev)
-    before = readme_names_at(prev) - set(e.get("name", e["id"]) for e in extras if e["id"] == README_EXTRA)
+    before = names_at(prev) - set(ename(e) for e in extras if e["id"] == README_EXTRA)
     parts = ["Artekka's kit %s → %s." % (old_kit, kit) if old_kit != kit else "Artekka's kit still %s." % kit]
     added, gone = sorted(now - before), sorted(before - now)
+    changed = [ename(r[0]) for r in rows if r[3]]
     if added:
         parts.append("New extras: " + ", ".join(added) + ".")
+    if changed:
+        parts.append("Changed: " + ", ".join(changed) + ".")
     if gone:
         parts.append("Extras given to his kit or retired: " + ", ".join(gone) + ".")
-    if not added and not gone:
+    if not added and not gone and not changed:
         parts.append("No new extras; %d in the kit." % len(now))
     return head + "\n" + " ".join(parts)
 
 
-def update_readme(tag, extras, dry):
-    """Rewrite the fork's README blocks on the readme extra's branch and merge it into prs; returns a report line."""
+def update_readme(tag, prev, extras, rows, dry):
+    """Rewrite the fork's README blocks and EXTRAS.md on the readme extra's branch and merge it into prs; returns a report line."""
     br = "extra/" + README_EXTRA
     if not git("rev-parse", "--verify", "-q", br, check=False):
         return "README: no branch %s, left as it is" % br
-    prev = release_tags()[0] if release_tags() else ""
-    entry = readme_log_entry(tag, prev, extras)
+    entry = readme_log_entry(tag, prev, extras, rows)
     if dry:
-        return "rewrite README's top block and add this changelog entry on %s, then merge it into prs:\n    %s" % (br, entry.replace("\n", "\n    "))
+        return "rewrite README's top block and %s, and add this changelog entry on %s, then merge it into prs:\n    %s" % (EXTRAS_PAGE, br, entry.replace("\n", "\n    "))
     import tempfile
     wt = tempfile.mkdtemp(prefix="my-extras-readme-")
     git("worktree", "add", "-q", wt, br)
@@ -281,7 +401,7 @@ def update_readme(tag, extras, dry):
             raise SystemExit("release refused: README.md on %s lacks the own-fork markers (%s … %s and %s … %s)" % (br, TOP_A, TOP_Z, LOG_A, LOG_Z))
         pre, rest = text.split(TOP_A, 1)
         _, post = rest.split(TOP_Z, 1)
-        text = pre + readme_top(tag, extras) + post
+        text = pre + readme_top(tag, extras, rows) + post
         pre, rest = text.split(LOG_A, 1)
         block, post = rest.split(LOG_Z, 1)
         block = re.sub(r"\n### %s \(.*?\)\n.*?(?=\n### |\n?$)" % re.escape(tag), "", block, flags=re.S)   # same tag again: replace
@@ -289,50 +409,71 @@ def update_readme(tag, extras, dry):
         block = (block[:m.start()] + entry + "\n\n" + block[m.start():]) if m else (block.rstrip("\n") + "\n\n" + entry + "\n")
         text = pre + LOG_A + block + LOG_Z + post
         open(path, "w", encoding="utf-8").write(text)
-        changed = bool(subprocess.run(["git", "-C", wt, "status", "--porcelain", "README.md"], capture_output=True, text=True).stdout.strip())
-        if changed:   # a release stopped at a red gate already wrote this; then there is nothing new to commit
-            subprocess.run(["git", "-C", wt, "add", "README.md"], check=True)
+        open(os.path.join(wt, EXTRAS_PAGE), "w", encoding="utf-8").write(extras_page(tag, extras))
+        changed = bool(subprocess.run(["git", "-C", wt, "status", "--porcelain", "README.md", EXTRAS_PAGE], capture_output=True, text=True).stdout.strip())
+        if changed:   # a release stopped at a red gate (or a preview) already wrote this; then there is nothing new to commit
+            subprocess.run(["git", "-C", wt, "add", "README.md", EXTRAS_PAGE], check=True)
             subprocess.run(["git", "-C", wt, "commit", "-q", "-m", "readme: %s" % tag], check=True)
     finally:
         git("worktree", "remove", "--force", wt, check=False)
-    if git("merge-base", "--is-ancestor", br, "prs", check=False) == "" and subprocess.run(["git", "-C", REPO, "merge-base", "--is-ancestor", br, "prs"]).returncode == 0:
+    if subprocess.run(["git", "-C", REPO, "merge-base", "--is-ancestor", br, "prs"]).returncode == 0:
         return "README already current on %s for %s" % (br, tag)
     git("merge", "--no-ff", "-q", br, "-m", "Merge %s: README for %s" % (br, tag))
     return "README rewritten on %s for %s and merged into prs" % (br, tag)
 
 
-def cmd_release(dry, bump="patch"):
+def prepare(bump, who):
+    """The checks a release and a preview share; returns (tag, prev, extras, rows, notes file)."""
     if not NO_NET:
         for remote in (UP.split("/")[0], ORIGIN):
             r = subprocess.run(["timeout", "20", "git", "-C", REPO, "fetch", "-q", "--tags", remote], capture_output=True, text=True)
             if r.returncode != 0:
-                raise SystemExit("release: cannot fetch %s (%s): no release without a fresh look at it" % (remote, r.stderr.strip()[:120]))
+                raise SystemExit("%s: cannot fetch %s (%s): no release without a fresh look at it" % (who, remote, r.stderr.strip()[:120]))
     ahead = int(git("rev-list", "--count", "prs.." + UP) or 0)
     if ahead:
-        raise SystemExit("release refused: Artekka has %d new commit%s your kit lacks. Run the update first (ask Claude \"update the kit\")." % (ahead, "" if ahead == 1 else "s"))
+        raise SystemExit("%s refused: Artekka has %d new commit%s your kit lacks. Run the update first (ask Claude \"update the kit\")." % (who, ahead, "" if ahead == 1 else "s"))
     if git("status", "--porcelain", "--untracked-files=no"):
-        raise SystemExit("release refused: the kit folder has uncommitted changes. Commit or drop them first.")
+        raise SystemExit("%s refused: the kit folder has uncommitted changes. Commit or drop them first." % who)
     stray = stray_commits()
     if stray:
-        raise SystemExit("release refused: prs holds changes that belong to no extra:\n  " + "\n  ".join(stray))
+        raise SystemExit("%s refused: prs holds changes that belong to no extra:\n  " % who + "\n  ".join(stray))
     if not release_due():
-        raise SystemExit("release refused: prs is already released as %s; nothing new since." % release_tags()[0])
+        raise SystemExit("%s refused: prs is already released as %s; nothing new since." % (who, release_tags()[0]))
     tag = next_release_tag(bump)
     if git("tag", "-l", tag):
-        raise SystemExit("release refused: a tag %s already exists on this repository (Artekka's?). Pick --minor or --major, or rename." % tag)
-    sha = git("rev-parse", "--short", "prs")
+        raise SystemExit("%s refused: a tag %s already exists on this repository (Artekka's?). Pick --minor or --major, or rename." % (who, tag))
     extras, _ = read_page()
-    notes = release_notes(tag, extras)
+    check_fields(extras)
+    prev = release_tags()[0] if release_tags() else ""
+    rows = release_rows(tag, prev, extras)
+    notes = release_notes(tag, extras, rows)
     import tempfile
     nf = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False)
     nf.write(notes); nf.close()
-    scan = subprocess.run([os.path.join(HERE, "push-check"), "file", nf.name], capture_output=True, text=True)
+    public = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False)   # everything this writes for visitors
+    public.write(readme_top(tag, extras, rows) + "\n" + extras_page(tag, extras)); public.close()
+    scan = subprocess.run([os.path.join(HERE, "push-check"), "file", nf.name, public.name], capture_output=True, text=True)
+    os.unlink(public.name)
     if scan.returncode != 0:
         os.unlink(nf.name)
-        raise SystemExit("release refused: the release notes hold a private word (fix the extra's description in MY-EXTRAS.md):\n" + scan.stdout.strip())
+        raise SystemExit("%s refused: the release notes or the public extras list hold a private word (fix the extra's description in MY-EXTRAS.md):\n" % who + scan.stdout.strip())
+    return tag, prev, extras, rows, nf.name
+
+
+def cmd_preview(bump="patch"):
+    tag, prev, extras, rows, notes = prepare(bump, "preview")
+    os.unlink(notes)
+    print(update_readme(tag, prev, extras, rows, False))
+    print("preview: README.md and %s for %s are on prs now; nothing pushed, no tag. Read them, then run release." % (EXTRAS_PAGE, tag))
+
+
+def cmd_release(dry, bump="patch"):
+    tag, prev, extras, rows, notes_path = prepare(bump, "release")
+    notes = open(notes_path, encoding="utf-8").read()
+    sha = git("rev-parse", "--short", "prs")
     repo = fork_repo()
     old = git("rev-parse", "--verify", "-q", "%s/%s" % (ORIGIN, OFFICIAL), check=False)
-    plan = [update_readme(tag, extras, True),
+    plan = [update_readme(tag, prev, extras, rows, True),
             "tag prs (%s) as %s" % (sha, tag),
             "push prs to %s" % ORIGIN,
             "overwrite %s/%s with prs (force-with-lease; it held %s)" % (ORIGIN, OFFICIAL, old[:7] if old else "nothing"),
@@ -344,9 +485,9 @@ def cmd_release(dry, bump="patch"):
             print("  " + p)
         print("Release notes:")
         print("  " + notes.replace("\n", "\n  ").rstrip())
-        os.unlink(nf.name)
+        os.unlink(notes_path)
         return
-    print("  " + update_readme(tag, extras, False))
+    print("  " + update_readme(tag, prev, extras, rows, False))
     sha = git("rev-parse", "--short", "prs")
     plan[1] = "tag prs (%s) as %s" % (sha, tag)
     print("gate: " + GATE)
@@ -354,7 +495,7 @@ def cmd_release(dry, bump="patch"):
     if r.returncode != 0:
         tail = "\n".join((r.stdout + r.stderr).splitlines()[-12:])
         raise SystemExit("release refused: the gate is red (exit %d). Last lines:\n%s" % (r.returncode, tail))
-    git("tag", "-a", tag, "prs", "-m", "%s Orca-kit %s on Artekka's kit %s, plus the extras listed in MY-EXTRAS.md" % (RELEASE_MARK, tag, version("prs")))
+    git("tag", "-a", tag, "prs", "-m", "%s Orca-kit %s on Artekka's kit %s, plus the extras listed in %s" % (RELEASE_MARK, tag, version("prs"), EXTRAS_PAGE))
     git("push", ORIGIN, "prs")
     if git("rev-parse", "--verify", "-q", "extra/" + README_EXTRA, check=False):
         git("push", ORIGIN, "extra/" + README_EXTRA)   # the README commits live on that branch: back it up with prs
@@ -364,10 +505,10 @@ def cmd_release(dry, bump="patch"):
     page = "skipped (no network)" if NO_NET else "skipped (origin is not on GitHub)" if not repo else ""
     if not page:
         r = subprocess.run(["timeout", "60", "gh", "release", "create", tag, "--repo", repo, "--title",
-                            "Orca-kit %s, on Artekka's %s" % (tag, version("prs")), "--notes-file", nf.name],
+                            "Orca-kit %s, on Artekka's %s" % (tag, version("prs")), "--notes-file", notes_path],
                            capture_output=True, text=True)
         page = r.stdout.strip() if r.returncode == 0 else "FAILED (%s); the tag is pushed, so run: gh release create %s --repo %s --notes-file <notes>" % (r.stderr.strip()[:160], tag, repo)
-    os.unlink(nf.name)
+    os.unlink(notes_path)
     plan[-1] += ": " + page
     for p in plan[1:]:
         print("  done: " + p)
@@ -412,9 +553,12 @@ def render(extras, history, changed):
         lines.append("### " + e["id"])
         for k in ("name", "status", "pr", "what"):
             lines.append("- %s: %s" % (k, e.get(k, "")))
+        for k in ("group", "kind", "changed"):
+            if k in e:
+                lines.append("- %s: %s" % (k, e[k]))
         lines.append("- files (from git): " + (" ".join(extra_files(e["id"])) or "(branch missing)"))
         for k, v in e.items():  # any other line (e.g. merge notes) is kept as written
-            if k not in ("id", "name", "status", "pr", "what"):
+            if k not in ("id", "name", "status", "pr", "what", "group", "kind", "changed"):
                 lines.append("- %s: %s" % (k, v))
         lines.append("")
     lines += ["## Given to his kit", ""] + (["- " + h for h in history] or ["(none yet)"]) + [""]
@@ -555,6 +699,9 @@ def main():
     elif cmd == "release":
         flags = sys.argv[2:]
         cmd_release("--dry-run" in flags, "major" if "--major" in flags else "minor" if "--minor" in flags else "patch")
+    elif cmd == "preview":
+        flags = sys.argv[2:]
+        cmd_preview("major" if "--major" in flags else "minor" if "--minor" in flags else "patch")
     else:
         print(__doc__.strip(), file=sys.stderr)
         sys.exit(64)
