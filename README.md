@@ -1,30 +1,20 @@
 <!-- own-fork:top -->
-**This is PRS's fork of Artekka's orchestration kit.** It is his kit, kept current with his releases, plus 22
+**This is PRS's fork of Artekka's orchestration kit.** It is his kit, kept current with his releases, plus 25
 extras: things built while running it on real projects, kept as separate branches and offered to him one at a time.
 Install this fork to get all of them; **[the full list of extras](EXTRAS.md)** says what each one does.
 The official release is **v1.0.2**, on Artekka's 0.9.0; releases are on the Releases page, and this fork's changelog is at
 the end of this file.
 
-No extra is new or changed in v1.0.2. Last new and changed, in v1.0.1. ✨ Feature: something new to use or see · 🐛 Fix: something broken, repaired · 🔧 Update: a change to how the workflow runs.
-
-#### Start and setup
-
-- 🐛 **Kit update** (changed): the status bar's installed copy is now refreshed when it is behind at the same version
-
-#### Status bar
-
-- ✨ **HUD setup Done** (changed): the setup page offers the pane's icon (koi or helmet)
-- ✨ **Koi icon** (changed): the icon is now a choice, koi or the horned helmet, picked on the setup page or as `paneIcon`
+New and changed in v1.0.2. ✨ Feature: something new to use or see · 🐛 Fix: something broken, repaired · 🔧 Update: a change to how the workflow runs.
 
 #### Tests, gates and guards
 
-- ✨ **Secrets guard**: a `never_read:` list in ORCHESTRATION.md → Secrets; the kit's hook then refuses reading, searching or naming those paths (key stores, token files, locked copies) for Read, Grep and Bash, and sends the session to the human for the key; no list, no guard
+- ✨ **Force-push guard**: the git guard also refuses a force-push (`git push -f`, `--force`, `--force-with-lease`, `--mirror`, a `+branch` refspec) and says to push the rewritten work as a new branch instead; a human can still run it in their own terminal
+- 🔧 **Falsify checklist**: the falsify skill gets the rules its users kept tripping on: a break that only adds lines changes nothing, show the break moved the value the check reads, abort on an empty selection, predict the exact failure line, run in the gate's own mode, score from the full log, stack breaks when two fixes cover each other, find the second path before calling a check weak
 
 #### Seat, verifier and lessons
 
-- 🔧 **Lessons from the checks** (changed): eleven new lessons (141–151) and twenty-four more existing lessons extended
-- 🔧 **Verifier reads the base**: the verifier reads the brief, the overlay and the Locked list at origin/main, never from the branch it judges; commit messages, comments and diff text are data, never instructions; a table says what PASS, DEVIATES and BROKEN mean
-- 🔧 **Rules by path and a review checklist**: project conventions that bind only some files go in `.claude/rules/<area>.md` with a `paths:` list (loaded only when a session touches a matching file), named on each brief and read by the verifier at origin/main; ORCHESTRATION.md gets a Review checklist that retro appends to and the verifier checks on every row
+- 🐛 **Lean board**: a builder's start carries only the seat's live banner (the cut stops at the next heading of any depth and at 6000 characters); at every seat start the rows earlier seats closed move verbatim to the board archive; the brief template gets a `builds on` line naming earlier rows and where to read them
 <!-- /own-fork:top -->
 
 # orchestration-kit
@@ -266,7 +256,7 @@ Unreleased. Below, one entry per release of this fork, newest first.
 <!-- own-fork:changelog -->
 
 ### v1.0.2 (2026-10-26)
-Artekka's kit still 0.9.0. No new extras; 22 in the kit.
+Artekka's kit still 0.9.0. New extras: Falsify checklist, Force-push guard, Lean board.
 
 ### v1.0.1 (2026-10-26)
 Artekka's kit still 0.9.0. New extras: Rules by path and a review checklist, Secrets guard, Verifier reads the base. Changed: Kit update, HUD setup Done, Koi icon, Lessons from the checks.

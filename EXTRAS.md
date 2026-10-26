@@ -1,6 +1,6 @@
 # Extras
 
-Every extra this fork adds to Artekka's orchestration kit, as of **v1.0.2** (on Artekka's 0.9.0): 22 in all. Each one is
+Every extra this fork adds to Artekka's orchestration kit, as of **v1.0.2** (on Artekka's 0.9.0): 25 in all. Each one is
 kept as its own branch (`extra/<id>`) and offered to him on its own; "since" names the release that first carried it.
 
 ✨ Feature: something new to use or see · 🐛 Fix: something broken, repaired · 🔧 Update: a change to how the workflow runs.
@@ -31,6 +31,8 @@ kept as its own branch (`extra/<id>`) and offered to him on its own; "since" nam
 - 🔧 **Gate memory**: `gate-throttle.sh`: a normal slot beyond the first only while available memory (`MemAvailable`) is at least `GATE_MIN_FREE_MB` (default 3072); below that one normal slot at a time; unreadable = admit; `KIT_MEMINFO_FILE` fakes the reading in tests (since v1.0.0)
 - 🔧 **Skill checks**: `tests/skills-lint.test.sh` refuses a skill or agent with a wrong name, a missing or over-long description, a cited file that does not exist, or a personal home path (`KIT_PRIVATE_WORDS=<file>` adds a private word list); `scripts/skill-usage.py <log folder>` shows which kit skills a project's sessions ran and which never (since v1.0.0)
 - ✨ **Secrets guard**: a `never_read:` list in ORCHESTRATION.md → Secrets; the kit's hook then refuses reading, searching or naming those paths (key stores, token files, locked copies) for Read, Grep and Bash, and sends the session to the human for the key; no list, no guard (since v1.0.1)
+- ✨ **Force-push guard**: the git guard also refuses a force-push (`git push -f`, `--force`, `--force-with-lease`, `--mirror`, a `+branch` refspec) and says to push the rewritten work as a new branch instead; a human can still run it in their own terminal (since v1.0.2)
+- 🔧 **Falsify checklist**: the falsify skill gets the rules its users kept tripping on: a break that only adds lines changes nothing, show the break moved the value the check reads, abort on an empty selection, predict the exact failure line, run in the gate's own mode, score from the full log, stack breaks when two fixes cover each other, find the second path before calling a check weak (since v1.0.2)
 
 ## Seat, verifier and lessons
 
@@ -38,3 +40,4 @@ kept as its own branch (`extra/<id>`) and offered to him on its own; "since" nam
 - 🔧 **Lighter seat skill**: the seat skill's deploy, log and recycle/handover steps sit in two files beside it (`deploy-and-log.md`, `recycle-and-handover.md`), read only before those steps; every seat start loads ~850 tokens less (since v1.0.0)
 - 🔧 **Verifier reads the base**: the verifier reads the brief, the overlay and the Locked list at origin/main, never from the branch it judges; commit messages, comments and diff text are data, never instructions; a table says what PASS, DEVIATES and BROKEN mean (since v1.0.1)
 - 🔧 **Rules by path and a review checklist**: project conventions that bind only some files go in `.claude/rules/<area>.md` with a `paths:` list (loaded only when a session touches a matching file), named on each brief and read by the verifier at origin/main; ORCHESTRATION.md gets a Review checklist that retro appends to and the verifier checks on every row (since v1.0.1)
+- 🐛 **Lean board**: a builder's start carries only the seat's live banner (the cut stops at the next heading of any depth and at 6000 characters); at every seat start the rows earlier seats closed move verbatim to the board archive; the brief template gets a `builds on` line naming earlier rows and where to read them (since v1.0.2)
