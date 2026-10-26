@@ -216,10 +216,6 @@ def ename(e):
     return e.get("name", e["id"])
 
 
-def cell(text):
-    return text.replace("|", "\\|")
-
-
 def check_fields(extras):
     """Every extra a visitor is told about carries a group and a kind; refuse, never guess one."""
     bad = []
@@ -255,7 +251,9 @@ def names_at(ref):
         if TOP_A not in text:
             return set()
         text = text.split(TOP_A, 1)[1].split(TOP_Z, 1)[0]
-    return set(m.group(1).strip() for m in re.finditer(r"^\| ([^|]+?) \| ", text, re.M)) - {"Extra"}
+    rows = re.finditer(r"^\| ([^|]+?) \| ", text, re.M)          # the tables of v1.0.0 and v1.0.1
+    bullets = re.finditer(r"^- \S+ \*\*(.+?)\*\*", text, re.M)   # the bullets since
+    return set(m.group(1).strip() for m in list(rows) + list(bullets)) - {"Extra"}
 
 
 def patch_ids_in(ref):
@@ -292,26 +290,28 @@ def release_rows(tag, prev, extras):
     return rows
 
 
-def grouped_tables(rows, level, cols, fmt):
-    """One table per group, the groups in the order they first appear in MY-EXTRAS.md."""
+EMOJI = {"Feature": "✨", "Fix": "🐛", "Update": "🔧"}
+KIND_KEY = "✨ Feature: something new to use or see · 🐛 Fix: something broken, repaired · 🔧 Update: a change to how the workflow runs"
+
+
+def grouped_bullets(rows, level, tail=lambda r: ""):
+    """A heading per group (in the order the groups first appear in MY-EXTRAS.md), one bullet per extra."""
     by = {}
     for r in rows:
         by.setdefault(r[0].get("group"), []).append(r)
     out = []
     for g, rs in by.items():
-        out += ["%s %s" % (level, g), "", "| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)] + [fmt(r) for r in rs] + [""]
+        out += ["%s %s" % (level, g), ""]
+        out += ["- %s **%s**%s: %s%s" % (EMOJI[r[1]], ename(r[0]), " (changed)" if r[3] else "", r[2], tail(r)) for r in rs] + [""]
     return out
-
-
-KIND_KEY = "Feature: something new to use or see · Fix: something broken, repaired · Update: a change to how the workflow runs"
 
 
 def release_notes(tag, extras, rows):
     n = len(listed(extras))
     lines = ["Orca-kit %s: Artekka's orchestration kit %s plus %d extra%s; every one is described in %s." % (tag, version("prs"), n, "" if n == 1 else "s", EXTRAS_PAGE), ""]
     if rows:
-        lines += ["New and changed in this release (%s):" % KIND_KEY, ""]
-        lines += grouped_tables(rows, "####", ["Extra", "Kind", "What's new"], lambda r: "| %s | %s | %s |" % (cell(ename(r[0]) + (" (changed)" if r[3] else "")), r[1], cell(r[2])))
+        lines += ["New and changed in this release. %s." % KIND_KEY, ""]
+        lines += grouped_bullets(rows, "####")
     else:
         lines += ["No extra is new or changed in this release.", ""]
     lines += ["Install: `claude plugin marketplace add <this repository>` then `claude plugin install orchestration-kit@artekka-kits`.",
@@ -330,8 +330,8 @@ def readme_top(tag, extras, rows):
         "the end of this file.",
         ""]
     if rows:
-        lines += ["New and changed in %s (%s):" % (tag, KIND_KEY), ""]
-        lines += grouped_tables(rows, "####", ["Extra", "Kind", "What's new"], lambda r: "| %s | %s | %s |" % (cell(ename(r[0]) + (" (changed)" if r[3] else "")), r[1], cell(r[2])))
+        lines += ["New and changed in %s. %s." % (tag, KIND_KEY), ""]
+        lines += grouped_bullets(rows, "####")
     else:
         lines += ["No extra is new or changed in %s." % tag, ""]
     return "\n".join(lines).rstrip("\n") + "\n" + TOP_Z
@@ -352,12 +352,12 @@ def extras_page(tag, extras):
         "# Extras",
         "",
         "Every extra this fork adds to Artekka's orchestration kit, as of **%s** (on Artekka's %s): %d in all. Each one is" % (tag, version("prs"), n),
-        "kept as its own branch (`extra/<id>`) and offered to him on its own. Kinds: **Feature**, something new to use or",
-        "see; **Fix**, something broken, repaired; **Update**, a change to how the workflow runs (lessons, gates, checks).",
-        "Since: the release that first carried it. The release writes this page; the README shows what each release changed.",
+        "kept as its own branch (`extra/<id>`) and offered to him on its own; \"since\" names the release that first carried it.",
+        "",
+        KIND_KEY + ".",
         ""]
     rows = [(e, e["kind"], e.get("what", ""), False) for e in listed(extras)]
-    lines += grouped_tables(rows, "##", ["Extra", "Kind", "What it does", "Since"], lambda r: "| %s | %s | %s | %s |" % (cell(ename(r[0])), r[1], cell(r[2]), since[ename(r[0])]))
+    lines += grouped_bullets(rows, "##", lambda r: " (since %s)" % since[ename(r[0])])
     return "\n".join(lines).rstrip("\n") + "\n"
 
 

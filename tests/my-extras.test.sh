@@ -144,7 +144,7 @@ echo stray2 >> "$K/hud.ts"; q commit -qam "stray on prs"
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: refused with an unlisted change" 1 $?; has "release: names it" "stray on prs" "$out"
 q reset -q --hard HEAD~1
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: dry run passes the checks" 0 $?; has "release: plan shown" "tag prs" "$out"; has "release: first tag is v1.0.0" "v1.0.0" "$out"
-has "release: notes name the kit and the extras" "Orca-kit v1.0.0: Artekka's orchestration kit 1.1 plus 2 extras" "$out"; has "release: notes list an extra by group" "| Tabs | Feature | tab colors |" "$out"; has "release: notes point at the full list" "described in EXTRAS.md" "$out"; has "release: page step shown" "Release page" "$out"; has "release: README step shown" "rewrite README's top block" "$out"; has "release: first entry" "First official release: Artekka's 1.1 plus 2 extras" "$out"
+has "release: notes name the kit and the extras" "Orca-kit v1.0.0: Artekka's orchestration kit 1.1 plus 2 extras" "$out"; has "release: notes list an extra by group" "- ✨ **Tabs**: tab colors" "$out"; has "release: notes point at the full list" "described in EXTRAS.md" "$out"; has "release: page step shown" "Release page" "$out"; has "release: README step shown" "rewrite README's top block" "$out"; has "release: first entry" "First official release: Artekka's 1.1 plus 2 extras" "$out"
 hasnt "release: dry run leaves README alone" "v1.0.0" "$(git -C "$K" show prs:README.md)"
 sed -i 's/^- what: tab colors$/- what: tab colors for zebrafinch/' "$K/MY-EXTRAS.md"
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: refused when the notes hold a private word" 1 $?; has "release: says notes" "hold a private word" "$out"
@@ -154,9 +154,9 @@ printf 'a zebrafinch line\n' > "$TMP/note.md"; out="$("$PCK" file "$TMP/note.md"
 [ -z "$(git -C "$K" tag -l 'v1.*')" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: dry run made a tag"; }
 out="$(MY_EXTRAS_GATE=false "$X" release 2>&1)"; rc_is "release: refused on a red gate" 1 $?; has "release: says red" "gate is red" "$out"
 out="$("$X" release 2>&1)"; rc_is "release: succeeds" 0 $?; has "release: reports the tag" "released v1.0.0" "$out"; has "release: README written by the red-gate attempt, so already current" "already current on extra/fork-readme for v1.0.0" "$out"; has "release: page skipped offline" "skipped (no network)" "$out"
-rd="$(git -C "$K" show prs:README.md)"; has "readme: top names the release" "official release is **v1.0.0**, on Artekka's 1.1" "$rd"; has "readme: extras table by group" "#### Start and setup" "$rd"; has "readme: row with its kind" "| Tabs | Feature | tab colors |" "$rd"; has "readme: links the full list" "[the full list of extras](EXTRAS.md)" "$rd"; hasnt "readme: the readme extra is not listed" "| Fork README |" "$rd"; has "readme: changelog entry" "### v1.0.0 (" "$rd"; has "readme: middle kept" "middle" "$rd"
+rd="$(git -C "$K" show prs:README.md)"; has "readme: top names the release" "official release is **v1.0.0**, on Artekka's 1.1" "$rd"; has "readme: extras table by group" "#### Start and setup" "$rd"; has "readme: bullet with its kind" "- ✨ **Tabs**: tab colors" "$rd"; has "readme: links the full list" "[the full list of extras](EXTRAS.md)" "$rd"; hasnt "readme: the readme extra is not listed" "| Fork README |" "$rd"; has "readme: changelog entry" "### v1.0.0 (" "$rd"; has "readme: middle kept" "middle" "$rd"
 [ "$(git -C "$K" rev-parse extra/fork-readme:README.md)" = "$(git -C "$K" rev-parse prs:README.md)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL readme: branch and prs differ"; }
-xp="$(git -C "$K" show prs:EXTRAS.md)"; has "extras page: every extra, grouped" "## Status bar" "$xp"; has "extras page: kind and first release" "| Dots | Feature | project dots | v1.0.0 |" "$xp"; hasnt "extras page: no private fields" "merge notes" "$xp"; hasnt "extras page: no status" "Sent" "$xp"
+xp="$(git -C "$K" show prs:EXTRAS.md)"; has "extras page: every extra, grouped" "## Status bar" "$xp"; has "extras page: kind and first release" "- ✨ **Dots**: project dots (since v1.0.0)" "$xp"; hasnt "extras page: no private fields" "merge notes" "$xp"; hasnt "extras page: no status" "Sent" "$xp"
 out="$("$X" check)"; rc_is "check: readme commits belong to the extra" 0 $?
 [ "$(git -C "$R" rev-parse extra/fork-readme)" = "$(git -C "$K" rev-parse extra/fork-readme)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: readme extra branch not pushed to the fork"; }
 [ "$(git -C "$R" rev-parse main)" = "$(git -C "$K" rev-parse prs)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: fork main is not prs"; }
@@ -166,7 +166,7 @@ echo more2 > "$K/my-extras/x"; q commit -qam "tracking 3"
 out="$("$X" header)"; hasnt "header: carries no release flag" "⚑" "$out"
 sed -i 's/^- status: Sent$/- status: Merged/' "$K/MY-EXTRAS.md"   # Dots went to his kit: the next entry says so
 out="$("$X" release 2>&1)"; rc_is "release: second release overwrites main" 0 $?; has "release: patch bump by default" "released v1.0.1" "$out"
-rd="$(git -C "$K" show prs:README.md)"; has "readme: second entry first" "### v1.0.1 (" "${rd%%### v1.0.0*}"; has "readme: entry says kit unchanged" "Artekka's kit still 1.1." "$rd"; has "readme: entry names the extra that left" "retired: Dots." "$rd"; hasnt "readme: table drops the merged extra" "| Dots |" "$rd"; has "readme: only new or changed rows" "No extra is new or changed in v1.0.1." "$rd"; hasnt "readme: an old extra is not repeated" "| Tabs |" "$rd"
+rd="$(git -C "$K" show prs:README.md)"; has "readme: second entry first" "### v1.0.1 (" "${rd%%### v1.0.0*}"; has "readme: entry says kit unchanged" "Artekka's kit still 1.1." "$rd"; has "readme: entry names the extra that left" "retired: Dots." "$rd"; hasnt "readme: list drops the merged extra" "**Dots**" "$rd"; has "readme: only new or changed rows" "No extra is new or changed in v1.0.1." "$rd"; hasnt "readme: an old extra is not repeated" "**Tabs**" "$rd"
 [ "$(git -C "$R" rev-parse main)" = "$(git -C "$K" rev-parse prs)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: fork main not moved by the second release"; }
 out="$("$X" release 2>&1)"; rc_is "release: same commit twice refused" 1 $?; has "release: says already released" "already released as v1.0.1" "$out"
 # --- a changed extra needs a note for this release; preview puts the pages on prs without pushing
@@ -180,8 +180,8 @@ out="$("$X" release --dry-run 2>&1)"; rc_is "release: a malformed changed line r
 sed -i 's/^- changed: v1.0.2 Bogus: x$/- changed: v1.0.2 Fix: colors no longer flicker/' "$K/MY-EXTRAS.md"
 main_before="$(git -C "$R" rev-parse main)"
 out="$("$X" preview 2>&1)"; rc_is "preview: passes" 0 $?; has "preview: says nothing pushed" "nothing pushed, no tag" "$out"
-rd="$(git -C "$K" show prs:README.md)"; has "preview: changed row with its own kind" "| Tabs (changed) | Fix | colors no longer flicker |" "$rd"
-has "preview: extras page keeps the first release" "| Tabs | Feature | tab colors | v1.0.0 |" "$(git -C "$K" show prs:EXTRAS.md)"
+rd="$(git -C "$K" show prs:README.md)"; has "preview: changed row with its own kind" "- 🐛 **Tabs** (changed): colors no longer flicker" "$rd"
+has "preview: extras page keeps the first release" "- ✨ **Tabs**: tab colors (since v1.0.0)" "$(git -C "$K" show prs:EXTRAS.md)"
 [ -z "$(git -C "$K" tag -l v1.0.2)" ] && [ "$(git -C "$R" rev-parse main)" = "$main_before" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL preview: tagged or pushed"; }
 out="$("$X" release 2>&1)"; rc_is "release: after a preview" 0 $?; has "release: preview's pages already current" "already current on extra/fork-readme for v1.0.2" "$out"
 has "readme: changelog names the change" "Changed: Tabs." "$(git -C "$K" show prs:README.md)"
