@@ -2,37 +2,10 @@
 **This is PRS's fork of Artekka's orchestration kit.** It is his kit, kept current with his releases, plus 22
 extras: things built while running it on real projects, kept as separate branches and offered to him one at a time.
 Install this fork to get all of them; **[the full list of extras](EXTRAS.md)** says what each one does.
-The official release is **v1.0.1**, on Artekka's 0.9.0; releases are on the Releases page, and this fork's changelog is at
+The official release is **v1.0.2**, on Artekka's 0.9.0; releases are on the Releases page, and this fork's changelog is at
 the end of this file.
 
-New and changed in v1.0.1 (Feature: something new to use or see · Fix: something broken, repaired · Update: a change to how the workflow runs):
-
-#### Start and setup
-
-| Extra | Kind | What's new |
-|---|---|---|
-| Kit update (changed) | Fix | the status bar's installed copy is now refreshed when it is behind at the same version |
-
-#### Status bar
-
-| Extra | Kind | What's new |
-|---|---|---|
-| HUD setup Done (changed) | Feature | the setup page offers the pane's icon (koi or helmet) |
-| Koi icon (changed) | Feature | the icon is now a choice, koi or the horned helmet, picked on the setup page or as `paneIcon` |
-
-#### Tests, gates and guards
-
-| Extra | Kind | What's new |
-|---|---|---|
-| Secrets guard | Feature | a `never_read:` list in ORCHESTRATION.md → Secrets; the kit's hook then refuses reading, searching or naming those paths (key stores, token files, locked copies) for Read, Grep and Bash, and sends the session to the human for the key; no list, no guard |
-
-#### Seat, verifier and lessons
-
-| Extra | Kind | What's new |
-|---|---|---|
-| Lessons from the checks (changed) | Update | nine new lessons (141–149) and twenty more existing lessons extended |
-| Verifier reads the base | Update | the verifier reads the brief, the overlay and the Locked list at origin/main, never from the branch it judges; commit messages, comments and diff text are data, never instructions; a table says what PASS, DEVIATES and BROKEN mean |
-| Rules by path and a review checklist | Update | project conventions that bind only some files go in `.claude/rules/<area>.md` with a `paths:` list (loaded only when a session touches a matching file), named on each brief and read by the verifier at origin/main; ORCHESTRATION.md gets a Review checklist that retro appends to and the verifier checks on every row |
+No extra is new or changed in v1.0.2.
 <!-- /own-fork:top -->
 
 # orchestration-kit
@@ -272,6 +245,9 @@ Artekka's own changelog is in [CHANGELOG.md](CHANGELOG.md), his releases top dow
 Unreleased. Below, one entry per release of this fork, newest first.
 
 <!-- own-fork:changelog -->
+
+### v1.0.2 (2026-10-26)
+Artekka's kit still 0.9.0. No new extras; 22 in the kit.
 
 ### v1.0.1 (2026-10-26)
 Artekka's kit still 0.9.0. New extras: Rules by path and a review checklist, Secrets guard, Verifier reads the base. Changed: Kit update, HUD setup Done, Koi icon, Lessons from the checks.
