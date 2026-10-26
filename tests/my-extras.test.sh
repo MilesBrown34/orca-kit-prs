@@ -146,6 +146,8 @@ q reset -q --hard HEAD~1
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: dry run passes the checks" 0 $?; has "release: plan shown" "tag prs" "$out"; has "release: first tag is v1.0.0" "v1.0.0" "$out"
 has "release: notes name the kit and the extras" "Orca-kit v1.0.0: Artekka's orchestration kit 1.1 plus 2 extras" "$out"; has "release: notes list an extra by group" "- ✨ **Tabs**: tab colors" "$out"; has "release: notes point at the full list" "described in EXTRAS.md" "$out"; has "release: page step shown" "Release page" "$out"; has "release: README step shown" "rewrite README's top block" "$out"; has "release: first entry" "First official release: Artekka's 1.1 plus 2 extras" "$out"
 hasnt "release: dry run leaves README alone" "v1.0.0" "$(git -C "$K" show prs:README.md)"
+out="$("$X" release --help 2>&1)"; rc_is "release: an unknown option is refused, not run" 64 $?; has "release: names the option" "unknown option --help" "$out"
+hasnt "release: an unknown option leaves README alone" "v1.0.0" "$(git -C "$K" show prs:README.md)"
 sed -i 's/^- what: tab colors$/- what: tab colors for zebrafinch/' "$K/MY-EXTRAS.md"
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: refused when the notes hold a private word" 1 $?; has "release: says notes" "hold a private word" "$out"
 sed -i 's/^- what: tab colors for zebrafinch$/- what: tab colors/' "$K/MY-EXTRAS.md"

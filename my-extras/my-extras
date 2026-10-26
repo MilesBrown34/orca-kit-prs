@@ -713,9 +713,17 @@ def main():
         print("\n".join(extra_files(sys.argv[2])))
     elif cmd == "release":
         flags = sys.argv[2:]
+        bad = [f for f in flags if f not in ("--dry-run", "--minor", "--major")]
+        if bad:  # an unknown word (e.g. --help) must never fall through to a real release
+            print("release: unknown option " + " ".join(bad) + "\n\n" + __doc__.strip(), file=sys.stderr)
+            sys.exit(64)
         cmd_release("--dry-run" in flags, "major" if "--major" in flags else "minor" if "--minor" in flags else "patch")
     elif cmd == "preview":
         flags = sys.argv[2:]
+        bad = [f for f in flags if f not in ("--minor", "--major")]
+        if bad:
+            print("preview: unknown option " + " ".join(bad) + "\n\n" + __doc__.strip(), file=sys.stderr)
+            sys.exit(64)
         cmd_preview("major" if "--major" in flags else "minor" if "--minor" in flags else "patch")
     else:
         print(__doc__.strip(), file=sys.stderr)
