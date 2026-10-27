@@ -245,6 +245,42 @@ const acctSummary = (ss: readonly Heartbeat[], cfg: Config): string => {
   return `SESSIONS ${ss.length} · acct 1 ×${a1} · acct 2 ×${ss.length - a1}`
 }
 
+export type KeyItem = { mark: string; col: Col; text: string; group?: true }
+
+/** The keys under the sessions title, for the band and the pane alike: the context colors, then (project dots) which color is which project, then the busy/idle marks. An item with no mark is a heading; `group` starts a new kind of key. */
+export function keyItems(v: View): KeyItem[] {
+  const on = (id: string): boolean => shows(v.cfg, id)
+  const ss = v.snap.sessions
+  const out: KeyItem[] = []
+  let group = false
+  const key = (mark: string, col: Col, text: string): void => {
+    out.push(group ? { mark, col, text, group } : { mark, col, text })
+    group = false
+  }
+  if (on('context-key')) {
+    group = true
+    const win = ss[0]?.window ?? 1_000_000
+    key('', C.dim, `CONTEXT of ${win >= 1_000_000 ? `${win / 1_000_000}M` : kfmt(win)}`)
+    key('■', C.green, `<${kfmt(v.cfg.amberMark)}`)
+    key('■', C.amber, `${kfmt(v.cfg.amberMark)}-${kfmt(v.cfg.reportMark)}`)
+    key('■', C.red, `≥${kfmt(v.cfg.reportMark)}`)
+  }
+  if (v.cfg.dotMode === 'project' && on('dot-key') && on('dot')) {
+    const seen = new Map<string, Col>()
+    for (const h of ss) if (h.project && !seen.has(h.project)) seen.set(h.project, h.color || C.dim)
+    group = true
+    for (const [name, col] of seen) key('●', col, trunc(name, 14))
+  }
+  if (on('state-key')) {
+    group = true
+    key('▘', C.green, 'busy')
+    key('$', C.orange, 'shell')
+    key('◔', C.cyan, 'bg')
+    key('○', C.dim, 'idle')
+  }
+  return out
+}
+
 /** Variant A: the framed band, up to 10 rows at 180 columns; falls back to the 3-row compact form when narrow or short. */
 export function drawBand(v: View, cols: number, maxRows: number): Line[] {
   const W = clamp(cols, 20, 200)
@@ -278,30 +314,14 @@ export function drawBand(v: View, cols: number, maxRows: number): Line[] {
 
   const rx = LX + 2
   const area = W - rx - 2
-  const win = ss[0]?.window ?? 1_000_000
-  // The key row: the context colors, then (project dots) which color is which project; a key that does not fit is left out.
+  // The key row (keyItems); a key that does not fit is left out.
   let kx = rx
-  const key = (mark: string, col: Col, text: string): void => {
-    if (kx + mark.length + text.length + 3 > W - 2) return
-    s.put(kx, 1, mark, col)
-    kx = s.put(kx + mark.length + 1, 1, text, dim) + 2
-  }
-  if (on('context-key')) {
-    kx = s.put(kx, 1, `CONTEXT of ${win >= 1_000_000 ? `${win / 1_000_000}M` : kfmt(win)}`, dim) + 2
-    key('■', C.green, `<${kfmt(v.cfg.amberMark)}`)
-    key('■', C.amber, `${kfmt(v.cfg.amberMark)}-${kfmt(v.cfg.reportMark)}`)
-    key('■', C.red, `≥${kfmt(v.cfg.reportMark)}`)
-  }
-  if (v.cfg.dotMode === 'project' && on('dot-key') && on('dot')) {
-    const seen = new Map<string, Col>()
-    for (const h of ss) if (h.project && !seen.has(h.project)) seen.set(h.project, h.color || C.dim)
-    for (const [name, col] of seen) key('●', col, trunc(name, 14))
-  }
-  if (on('state-key')) {
-    key('▘', C.green, 'busy')
-    key('$', C.orange, 'shell')
-    key('◔', C.cyan, 'bg')
-    key('○', C.dim, 'idle')
+  for (const k of keyItems(v)) {
+    if (!k.mark) kx = s.put(kx, 1, k.text, dim) + 2
+    else if (kx + k.mark.length + k.text.length + 3 <= W - 2) {
+      s.put(kx, 1, k.mark, k.col)
+      kx = s.put(kx + k.mark.length + 1, 1, k.text, dim) + 2
+    }
   }
   const cap = Math.max(0, area)
   const two = cap >= 126 && on('column2')
@@ -406,6 +426,23 @@ export function drawPane(v: View, cols: number): Line[] {
     for (let y = 0; y < 3; y++) lines.push([seg(g, y)])
   }
   lines.push(sep(W, acctSummary(ss, v.cfg)))
+  // The band's keys, each kind on a line of its own, wrapped when it needs more; a heading stays with the item after it.
+  const items = keyItems(v)
+  let k = new Scr(W, 1)
+  let kx = 1
+  items.forEach((it, i) => {
+    const next = items[i + 1]
+    const w = (it.mark ? it.mark.length + 1 : 0) + it.text.length + (!it.mark && next ? next.mark.length + next.text.length + 3 : 0)
+    if (kx > 1 && (it.group || kx + w > W - 1)) {
+      lines.push([seg(k, 0)])
+      k = new Scr(W, 1)
+      kx = 1
+    }
+    if (it.mark) k.put(kx, 0, it.mark, it.col)
+    const tx = it.mark ? kx + it.mark.length + 1 : kx
+    kx = k.put(tx, 0, trunc(it.text, W - 1 - tx), C.dim) + 2
+  })
+  if (kx > 1) lines.push([seg(k, 0)])
   ss.forEach((h, i) => lines.push([seg(sessionRow(v, h, W - 2, i === v.sel), 0, `sel:${i}`)]))
   const cur = ss[clamp(v.sel, 0, Math.max(0, ss.length - 1))]
   if (cur) {
