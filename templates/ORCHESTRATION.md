@@ -107,6 +107,7 @@ this machine, plus one priority slot for the paths the seat lists in
 `~/.orchestration-kit/runtime/gate-priority.txt` (release/train gates). Lower it if gates flake under load.
 `model` / `effort` (both optional) set the default for every launch: `model` is `opus[1m]`, `sonnet[1m]`, `haiku` or a full model id (default `opus[1m]`), `effort` one of `low|medium|high|xhigh|max` (default: not passed). The launch scripts ALWAYS pass `--model` and never inherit the old session's, so a recycled session starts on the model its lane needs, not on whatever the terminal had. `--model` / `--effort` flags override the block; a bad value in the block is ignored with a warning, a bad flag exits 64. Per-lane choices: orchestrate skill, "Model per lane".
 `names` (optional; add it to the block yourself, e.g. `names: Mars,Venus,Vulcan`, a comma list with no spaces) is a pool of sibling names used instead of `prefix` + a number: `start-team.sh` keeps any pool name that is already running and draws the rest at random, so tabs get names you chose rather than `Sib1`, `Sib2`. A pool smaller than `siblings` refuses with exit 64; the seat's name is never drawn. `--names A,B,C` overrides it for one launch. Add `numbered: w` (1-4 letters) to number them: `w1-Mars`, `w2-Venus`...; a running sibling keeps its number and a new one takes the lowest free number (`--numbered w` for one launch).
+`validators` (optional, default 0) opens that many validator lanes beside the siblings, named `v1-<name>`, `v2-<name>` from the same `names` pool (without a pool: `v1-<prefix>`). A v-lane never builds: the seat gives it READs, train audits, falsify runs and measurements, never a row or a fix round. The letter is the role, whatever name was drawn, so the Validator block can say "the v-lanes" instead of a name that the next team start may not draw. `numbered: v` is refused while `validators` is above 0. A recycle keeps a v-lane's name; `--validators N` overrides the count for one launch.
 `tab_profile` / `tab_color` (both optional; add them to the block yourself) style Windows Terminal tabs on WSL. `tab_profile` is the Windows Terminal profile each tab uses (default: the distro's own profile, e.g. `Ubuntu`, so the tabs look like your other Linux tabs; `none` = Windows Terminal's default). `tab_color` is `auto` (default: one color per repo, picked once and remembered in `~/.orchestration-kit/runtime/tab-colors`, so the seat and its siblings match and two projects differ), a fixed `#rrggbb`, or `none`. Each tab's session also gets `CLAUDE_TAB_COLOR=#rrggbb` and `COLORTERM=truecolor` in its environment.
 `terminal` picks how session windows open: `auto` (detect) or one of `wsl-wt`, `wsl-conhost`,
 `tmux`, `tmux-detached`, `macos-iterm`, `macos-terminal`, `gitbash-cmd`, `linux-<emulator>`
@@ -119,6 +120,7 @@ team:
   seat:             Orca
   prefix:           Sib
   siblings:         2
+  validators:       0
   permission_mode:  normal
   worktrees:        advised
   git_guard:        off
@@ -150,7 +152,7 @@ A sibling that NEVER builds — it only READs (verifies), re-reads fix rounds, v
 falsifies guards, and measures. Independent of every row because it built none of them.
 
 ```
-validator:      <e.g. Check — or "none: any non-builder sibling READs">
+validator:      <e.g. "the v-lanes (v1-<name>): never build" — or Check — or "none: any non-builder sibling READs">
 lanes:          READ · re-read · train/merge verification · falsification · measurement
 never:          build or fix rounds (a validator that builds loses its independence)
 ```

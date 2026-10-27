@@ -83,7 +83,7 @@ Each piece has the same three parts.
 
 **Why it exists:** A test and the code written by the same mind can ratify the same wrong value, and a check that cannot fail is not a check.
 
-**The knob:** the `Validator seat` block in `templates/ORCHESTRATION.md`; `skills/verify-feature/SKILL.md` (subagent fallback) with `agents/verifier.md`; `skills/falsify/SKILL.md`.
+**The knob:** the `Validator seat` block in `templates/ORCHESTRATION.md`; `skills/verify-feature/SKILL.md` (subagent fallback) with `agents/verifier.md`; `skills/falsify/SKILL.md`. `validators:` in the team block opens v-lanes (`v1-<name>`) that never build, so the role has a letter, not a name.
 
 ### Release trains and the deploy policy
 

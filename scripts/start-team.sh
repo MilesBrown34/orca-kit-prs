@@ -10,11 +10,13 @@
 #
 # Usage:
 #   scripts/start-team.sh [--dry-run] [--siblings N] [--seat NAME] [--prefix PFX] [--names A,B,C]
-#                         [--numbered PFX] [--mode normal|accept-edits|auto] [--model M] [--effort E]
+#                         [--numbered PFX] [--validators N] [--mode normal|accept-edits|auto] [--model M] [--effort E]
 #                         [--terminal BACKEND|auto|list] [--repo DIR]
 #   --terminal list   print every backend and whether it is available here, then exit
 #   --names A,B,C     name siblings from this pool instead of <prefix>1..N: names already running are
 #                     kept, the rest are drawn at random (TEAM_NAMES_SHUFFLE=0 keeps list order)
+#   --validators N    open N validator lanes too, named v1-<name>, v2-<name> (from the pool; v1-<prefix> without one);
+#                     a v-lane never builds, so the letter says the role whatever name was drawn (default 0)
 #   --numbered PFX    with a pool: number the siblings, PFX1-<name>, PFX2-<name>... (e.g. w -> w1-Mars);
 #                     a running one keeps its number, and a new one takes the lowest free number
 #   --account N|DIR   launch the whole team on that Claude Code account (docs/MULTI-ACCOUNT.md)
@@ -30,6 +32,7 @@
 #     prefix:           Sib
 #     names:            Mars,Venus,Vulcan   (optional: a pool of sibling names, comma list, no spaces)
 #     numbered:         w                   (optional, with names: siblings w1-Mars, w2-Venus...)
+#     validators:       1                   (optional: v1-<name> lanes that never build; 0 = none)
 #     siblings:         2
 #     permission_mode:  normal
 #     terminal:         auto
@@ -43,7 +46,7 @@ usage() { sed -n '11,37p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 64; }
 
 SEAT_PROMPT="/orchestration-kit:orchestrate"
 SIB_PROMPT="/orchestration-kit:orient"
-DRY=0; REPO=""; f_seat=""; f_prefix=""; f_n=""; f_mode=""; f_term=""; f_account=""; f_model=""; f_effort=""; f_model_set=0; f_effort_set=0; f_names=""; f_numbered=""
+DRY=0; REPO=""; f_seat=""; f_prefix=""; f_n=""; f_mode=""; f_term=""; f_account=""; f_model=""; f_effort=""; f_model_set=0; f_effort_set=0; f_names=""; f_numbered=""; f_nv=""
 # A flag whose value is missing is exit 64 like a bad value (`${1:?}` would exit 1).
 need_value() { [ "$1" -ge 2 ] || { echo "$2 needs a value: $3" >&2; exit 64; }; }
 while [ $# -gt 0 ]; do
@@ -54,6 +57,7 @@ while [ $# -gt 0 ]; do
     --prefix) shift; f_prefix="${1:?--prefix needs a name prefix}" ;;
     --names) shift; f_names="${1:?--names needs a comma list, e.g. Mars,Venus,Vulcan}" ;;
     --numbered) shift; f_numbered="${1:?--numbered needs 1-4 letters, e.g. w}" ;;
+    --validators) shift; f_nv="${1:?--validators needs a number 0..9}" ;;
     --mode) shift; f_mode="${1:?--mode needs normal|accept-edits|auto}" ;;
     --account) shift; f_account="${1:?--account needs a number (1, 2, 3...) or a config directory}" ;;
     # f_model_set / f_effort_set record "given", apart from "empty": `--model=` is a given, invalid value.
@@ -83,6 +87,10 @@ launch_resolve_model "$f_model" "$f_model_set" "$f_effort" "$f_effort_set"
 
 names=("$seat"); prompts=("$SEAT_PROMPT")
 pool_csv="${f_names:-${TEAM_NAMES:-}}"; num=""
+# Validator lanes (`validators:` / --validators): v1-<name>, v2-<name>... A v-lane never builds, so the
+# letter names the role whatever name the pool drew; a recycle keeps the name, a fresh start draws again.
+nv="${f_nv:-${TEAM_NV:-0}}"
+if ! [[ "$nv" =~ ^[0-9]$ ]]; then echo "--validators must be 0..9: '$nv'" >&2; exit 64; fi
 if [ -n "$pool_csv" ]; then
   # A name pool: keep the pool's names that are already running (a re-run fills gaps, as with numbers),
   # then draw the rest at random. The seat's own name is never a sibling.
@@ -90,21 +98,28 @@ if [ -n "$pool_csv" ]; then
   # Numbered siblings (`numbered: w`): w1-<name>, w2-<name>... A running one keeps its number.
   num="${f_numbered:-${TEAM_NUMBERED:-}}"
   [[ -z "$num" || "$num" =~ ^[A-Za-z]{1,4}$ ]] || { echo "numbered: '$num' must be 1-4 letters, e.g. w" >&2; exit 64; }
-  live=(); idle=(); seen=" "
+  if [ "$nv" -gt 0 ] && [ "$num" = v ]; then
+    echo "numbered: 'v' is the validator lanes' letter (validators: $nv); number the builders with another letter, e.g. w" >&2; exit 64
+  fi
+  live=(); livev=(); idle=(); seen=" "
   for nm in "${pool[@]}"; do
     launch_valid_name "$nm" || { echo "names: '$nm' is not a valid session name (letters, digits, _ and - only)" >&2; exit 64; }
     [ "$nm" = "$seat" ] && continue
     case "$seen" in *" $nm "*) continue ;; esac
     seen="$seen$nm "
-    held=""
+    held=""; heldv=""
+    for k in 1 2 3 4 5 6 7 8 9; do [ -z "$(launch_pids "v$k-$nm")" ] || { heldv="v$k-$nm"; break; }; done
     if [ -n "$num" ]; then
       for k in 1 2 3 4 5 6 7 8 9; do [ -z "$(launch_pids "$num$k-$nm")" ] || { held="$num$k-$nm"; break; }; done
     fi
     [ -n "$held" ] || [ -z "$(launch_pids "$nm")" ] || held="$nm"
-    if [ -n "$held" ]; then live+=("$held"); else idle+=("$nm"); fi
+    if [ -n "$heldv" ]; then livev+=("$heldv")
+    elif [ -n "$held" ]; then live+=("$held")
+    else idle+=("$nm"); fi
   done
-  if [ "$(( ${#live[@]} + ${#idle[@]} ))" -lt "$n" ]; then
-    echo "names: the pool has $(( ${#live[@]} + ${#idle[@]} )) usable names for $n siblings; add names or lower --siblings" >&2; exit 64
+  usable=$(( ${#live[@]} + ${#livev[@]} + ${#idle[@]} ))
+  if [ "$usable" -lt "$(( n + nv ))" ]; then
+    echo "names: the pool has $usable usable names for $n siblings and $nv validators; add names or lower --siblings / --validators" >&2; exit 64
   fi
   if [ "${TEAM_NAMES_SHUFFLE:-1}" != 0 ] && [ "${#idle[@]}" -gt 1 ]; then
     if command -v shuf >/dev/null 2>&1; then mapfile -t idle < <(printf '%s\n' "${idle[@]}" | shuf)
@@ -116,9 +131,9 @@ if [ -n "$pool_csv" ]; then
     [ "$(( ${#names[@]} - 1 ))" -lt "$n" ] || break
     names+=("$nm"); prompts+=("$SIB_PROMPT")
   done
-  k=0
-  for nm in "${idle[@]+"${idle[@]}"}"; do
-    [ "$(( ${#names[@]} - 1 ))" -lt "$n" ] || break
+  used=0; k=0
+  while [ "$(( ${#names[@]} - 1 ))" -lt "$n" ] && [ "$used" -lt "${#idle[@]}" ]; do
+    nm="${idle[$used]}"; used=$((used + 1))
     if [ -n "$num" ]; then
       # The lowest number no running sibling of this pool holds.
       while :; do
@@ -131,8 +146,25 @@ if [ -n "$pool_csv" ]; then
     fi
     names+=("$nm"); prompts+=("$SIB_PROMPT")
   done
+  # Validator lanes: the running ones first, then fresh names on the lowest free v-number.
+  nvdone=0; k=0
+  for nm in "${livev[@]+"${livev[@]}"}"; do
+    [ "$nvdone" -lt "$nv" ] || break
+    names+=("$nm"); prompts+=("$SIB_PROMPT"); nvdone=$((nvdone + 1))
+  done
+  while [ "$nvdone" -lt "$nv" ] && [ "$used" -lt "${#idle[@]}" ]; do
+    nm="${idle[$used]}"; used=$((used + 1))
+    while :; do
+      k=$((k + 1))
+      [ "$k" -le 9 ] || { echo "validators: no free number v1-v9 for $nm" >&2; exit 64; }
+      case " ${livev[*]-} " in *" v$k-"*) continue ;; esac
+      break
+    done
+    names+=("v$k-$nm"); prompts+=("$SIB_PROMPT"); nvdone=$((nvdone + 1))
+  done
 else
   for i in $(seq 1 "$n"); do names+=("${prefix}${i}"); prompts+=("$SIB_PROMPT"); done
+  for i in $(seq 1 "$nv"); do names+=("v${i}-${prefix}"); prompts+=("$SIB_PROMPT"); done
 fi
 for i in "${!names[@]}"; do launch_check_args "${names[$i]}" "${prompts[$i]}"; done
 
@@ -142,8 +174,8 @@ if [ "$DRY" -eq 1 ]; then
   echo "[dry-run] nothing will be launched or saved"
   launch_describe_env
   src="none (built-in defaults)"
-  if [ -n "$TEAM_SEAT$TEAM_PREFIX$TEAM_NAMES$TEAM_N$TEAM_MODE$TEAM_TERMINAL" ]; then src="team: block in ${TEAM_CONF#"$REPO"/}"; fi
-  echo "team       seat=${seat} siblings=${n} ${pool_csv:+names=${pool_csv} }${num:+numbered=${num} }prefix=${prefix} mode=${LAUNCH_MODE} terminal=${f_term:-${TEAM_TERMINAL:-auto}}   config: ${src}; flags override"
+  if [ -n "$TEAM_SEAT$TEAM_PREFIX$TEAM_NAMES$TEAM_N$TEAM_NV$TEAM_MODE$TEAM_TERMINAL" ]; then src="team: block in ${TEAM_CONF#"$REPO"/}"; fi
+  echo "team       seat=${seat} siblings=${n} validators=${nv} ${pool_csv:+names=${pool_csv} }${num:+numbered=${num} }prefix=${prefix} mode=${LAUNCH_MODE} terminal=${f_term:-${TEAM_TERMINAL:-auto}}   config: ${src}; flags override"
   if [ "$LAUNCH_BACKEND" = manual ]; then echo "manual     nothing can open windows here; a real run prints these commands and exits 2"; fi
 else
   if [ "$LAUNCH_FORCED" = 1 ] && [ "$LAUNCH_AVAILABLE" = 0 ]; then
