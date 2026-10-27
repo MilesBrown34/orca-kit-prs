@@ -22,6 +22,25 @@ for (const surface of ['terminal', 'desktop'] as const) {
   })
 }
 
+test('every host spawn runs from the home directory, never the session\'s own', async ($, on) => {
+  const w = world(on)
+  await $.session.start(START)
+  await w.clock.advance(3000)
+  expect(w.ran.length).toBeGreaterThan(3)
+  expect(w.cwds.every(c => c === '/home/u')).toBe(true)
+})
+
+test('after a heartbeat spawn that cannot start, the next tick writes the file', async ($, on) => {
+  const w = world(on)
+  w.noStart.add('sh')
+  await $.session.start(START)
+  await w.clock.advance(500)
+  expect(w.files.has('/home/u/.claude-status-hud/sessions/sess-1234567.json')).toBe(false)
+  w.noStart.delete('sh')
+  await w.clock.advance(3000)
+  expect(w.files.has('/home/u/.claude-status-hud/sessions/sess-1234567.json')).toBe(true)
+})
+
 test('crossing the report mark flashes the session row red in the drawn band, then settles', async ($, on) => {
   const w = world(on)
   await $.session.start(START)

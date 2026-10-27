@@ -8,6 +8,10 @@ type On = Parameters<typeof mock.clock>[0]
 export function world(on: On, o: { name?: string; acct?: string; quietFlag?: string } = {}) {
   const files = new Map<string, string>()
   const ran: string[][] = []
+  /** The directory each spawn was asked to run from (its init.cwd), in order. */
+  const cwds: (string | undefined)[] = []
+  /** Executables that cannot start (the engine rejects the call), switchable mid-test. */
+  const noStart = new Set<string>()
   const usage = { tokens: 100_000, window: 1_000_000 }
   const clock = mock.clock(on, { now: 5_000_000 })
   mock.env(on, { HOME: '/home/u' })
@@ -53,6 +57,8 @@ export function world(on: On, o: { name?: string; acct?: string; quietFlag?: str
   on('process.run', async (_$, e) => {
     const argv = [...e.argv]
     ran.push(argv)
+    cwds.push(e.init?.cwd)
+    if (noStart.has(argv[0] as string)) return { deny: `spawn ${argv[0]} ENOENT` }
     const out = (stdout: string, exitCode = 0) => ({ value: { exitCode, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
     if (argv[0] === 'rm') {
       files.delete(argv[argv.length - 1] as string)
@@ -73,5 +79,5 @@ export function world(on: On, o: { name?: string; acct?: string; quietFlag?: str
     if (script.includes('ps -o args=')) return out(`claude --name ${o.name ?? 'Orca'} --model opus::\nCLAUDE_CONFIG_DIR=${o.acct ?? '/home/u/.claude-acct2'}`)
     return out('')
   })
-  return { files, ran, usage, clock, stored, opened, toasts, failing }
+  return { files, ran, cwds, noStart, usage, clock, stored, opened, toasts, failing }
 }

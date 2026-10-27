@@ -61,18 +61,22 @@ function shownByConfig(): boolean {
   return names.length === 0 || names.includes(S.me.name)
 }
 
-function makeIo($: Dollar): Io {
+function makeIo($: Dollar, home: string): Io {
+  // Every spawn runs from the home directory, never the session's own: a session that removes the worktree it
+  // stands in has no current directory until its next `cd`, and a spawn from there fails to start (ENOENT).
+  const at = (timeoutMs?: number) => (timeoutMs ? { cwd: home, timeoutMs } : { cwd: home })
   return {
     read: p => $.fs.read(p).then(String, () => null),
     writeAtomic: async (p, text) => {
       const tmp = `${p}.${S.me.id}.tmp`
       await $.fs.write(tmp, text)
-      // One spawn: owner-only permissions, then the atomic rename.
-      await $.process.run(['sh', '-c', 'chmod 600 "$1" && mv -f "$1" "$2"', 'sh', tmp, p])
+      // One spawn: owner-only permissions, then the atomic rename. A tick that cannot spawn is skipped, not an
+      // error in the chat: the next tick writes the same file again.
+      await $.process.run(['sh', '-c', 'chmod 600 "$1" && mv -f "$1" "$2"', 'sh', tmp, p], at()).catch(() => undefined)
     },
     list: p => $.fs.list(p).then(es => es.filter(x => x.kind === 'file').map(x => ({ name: x.name, mtimeMs: x.mtimeMs })), () => []),
-    remove: async p => void (await $.process.run(['rm', '-f', p]).catch(() => undefined)),
-    run: (argv, timeoutMs) => $.process.run(argv, timeoutMs ? { timeoutMs } : {}).then(r => ({ exitCode: r.exitCode, stdout: r.stdout, stderr: r.stderr }), () => ({ exitCode: 127, stdout: '' })),
+    remove: async p => void (await $.process.run(['rm', '-f', p], at()).catch(() => undefined)),
+    run: (argv, timeoutMs) => $.process.run(argv, at(timeoutMs)).then(r => ({ exitCode: r.exitCode, stdout: r.stdout, stderr: r.stderr }), () => ({ exitCode: 127, stdout: '' })),
     now: () => $.clock.now(),
   }
 }
@@ -180,7 +184,7 @@ export const register: Register = (on, options) => {
     const home = (await $.env.get('HOME')) ?? ''
     const c = parseConfig(options, home)
     S.cfg = c
-    S.io = makeIo($)
+    S.io = makeIo($, home || '/')
     S.exists = p => $.fs.exists(p)
     S.cwd = e.cwd ?? ''
     const saved = await $.store.get('variant')

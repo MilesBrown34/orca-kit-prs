@@ -4,6 +4,7 @@ Newest first.
 
 ## Unreleased
 
+- **Fixed, status HUD: a hook error when the session's directory disappears.** The HUD ran its host commands (the heartbeat's `chmod`+`mv`, `ps`, the host sampler) from the session's current directory. A session that removes the worktree it stands in has no current directory until its next `cd`, and the heartbeat's spawn failed to start with `HooksError: $.process.run(sh) failed to start: ENOENT` in the chat. Every HUD spawn now runs from the home directory, and a heartbeat tick that cannot spawn is skipped (the next tick writes the file again).
 - **Changed: the GitHub repository is now `Artekka/orcastration-kit`** (was `claude-orchestration-kit`). Install with `claude plugin marketplace add Artekka/orcastration-kit`; the plugin id (`orchestration-kit@artekka-kits`), its slash commands and `~/.orchestration-kit/` do not change. GitHub redirects the old URL, so existing installs keep working. README, GETTING-STARTED, CONTRIBUTING, SECURITY, the issue-template link and the Code of Conduct contact link use the new name; the plugin manifest gains `homepage` and `repository`.
 - **Fixed: a team start with no Claude running exited silently.** (PRS 2026-10-17)
 - **New: `gate-throttle.sh --log <file>`.** (PRS 2026-10-15)
