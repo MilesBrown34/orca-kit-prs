@@ -73,7 +73,7 @@ The seat chooses a session's model at launch; a recycled session **never inherit
 | **Subagent** (model pinned by its agent type) | A bounded job with a clear output: a seam-map search, a mechanical sweep, a test-only fix, a measurement script, a single-file change. Starts at ~10–25K tokens against a session's orient cost |
 | **Session** | A long builder row with fix rounds; **every verification** (a peer has its own context, a subagent inherits the dispatcher's framing); user-facing work; anything that needs the human |
 
-- A subagent **dies with its parent**: the seat dispatches only SHORT ones (a long row would be lost on recycle). A builder may dispatch its own.
+- A subagent **dies with its parent**: the seat dispatches only SHORT ones (a long row would be lost on recycle), and only for research, review or moving text, never for a row's code (§11). A builder may dispatch its own.
 - Subagents share the same gate/toolchain: they do not add gate parallelism.
 - The `verifier` subagent (`/orchestration-kit:verify-feature`) stays the fallback when no independent sibling is free (§5).
 
@@ -170,4 +170,4 @@ Retro-before-clear is a **handshake** (LESSON 24): order → explicit "retro com
 | `non-blocking` (the human opted in) | While any sibling work is in flight, never block: ask in plain text (options, a recommendation, what waits on it), send a push notification, and keep everything that does not depend on the answer moving. Keep open questions on a `HUMAN QUEUE` line in the banner; lead your next reply with it when the human types anything. A blocking prompt is still fine when the human is at the terminal and nothing else waits |
 
 - **Permission requests are a command, not prose.** First check the rule is not already there (`jq '.permissions.allow' .claude/settings.local.json`), then give ONE idempotent command the human pastes as `! <command>`, e.g. `jq '.permissions.allow |= (. + ["Bash(npm test:*)"] | unique)' .claude/settings.local.json > .claude/s.tmp && mv .claude/s.tmp .claude/settings.local.json`, plus one line on what it allows. Sessions never edit permission settings themselves, and never ask a sibling to run what their own permissions blocked.
-- The seat writes: board, briefs, reconciles, deploys, logs. It does **not** write feature code.
+- The seat writes: board, briefs, reconciles, deploys, logs. It does **not** write feature code, and neither do its subagents: a seat subagent researches, reviews or moves text. A build or a fix round, however small, goes to a builder sibling and gets a READ like any row; "too small for a builder" is not a reason, because a row the seat built is a row the seat then judges alone.
