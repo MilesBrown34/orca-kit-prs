@@ -4,8 +4,7 @@ Newest first.
 
 ## Unreleased
 
-- **status-hud: the pane's icon is a setting**, `paneIcon`: `koi` (a white koi with red patches, the default) or `helmet` (the horned helmet); the HUD setup page offers the choice.
-- **Changed, status HUD: the pane's icon is a koi** (white with red patches) instead of the horned helmet; same size and place.
+- **status-hud: the pane's icon is a setting** (PRS 2026-10-23)
 - **Changed: the GitHub repository is now `Artekka/orcastration-kit`** (was `claude-orchestration-kit`). Install with `claude plugin marketplace add Artekka/orcastration-kit`; the plugin id (`orchestration-kit@artekka-kits`), its slash commands and `~/.orchestration-kit/` do not change. GitHub redirects the old URL, so existing installs keep working. README, GETTING-STARTED, CONTRIBUTING, SECURITY, the issue-template link and the Code of Conduct contact link use the new name; the plugin manifest gains `homepage` and `repository`.
 - **Fixed: a team start with no Claude running exited silently.** (PRS 2026-10-17)
 - **New: `gate-throttle.sh --log <file>`.** (PRS 2026-10-15)
