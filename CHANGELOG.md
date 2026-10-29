@@ -4,7 +4,7 @@ Newest first.
 
 ## Unreleased
 
-- **Changed: a seat whose rows all wait on the human keeps working.** In non-blocking mode the "keep moving" rule only covered the time while sibling work was in flight, so when every row waited on the human the seat had nothing telling it to go on, and one sat idle for hours while checks, owed log entries and rows needing no ruling were left undone. §11 now says that is not idle time: before waiting, start the work that needs no answer.
+- **Changed: a seat whose rows all wait on the human keeps working.** (PRS 2026-10-28)
 - **Changed: the GitHub repository is now `Artekka/orcastration-kit`** (was `claude-orchestration-kit`). Install with `claude plugin marketplace add Artekka/orcastration-kit`; the plugin id (`orchestration-kit@artekka-kits`), its slash commands and `~/.orchestration-kit/` do not change. GitHub redirects the old URL, so existing installs keep working. README, GETTING-STARTED, CONTRIBUTING, SECURITY, the issue-template link and the Code of Conduct contact link use the new name; the plugin manifest gains `homepage` and `repository`.
 - **Fixed: a team start with no Claude running exited silently.** (PRS 2026-10-17)
 - **New: `gate-throttle.sh --log <file>`.** (PRS 2026-10-15)
