@@ -4,7 +4,7 @@ Newest first.
 
 ## Unreleased
 
-- **New, status HUD: background state.** A session whose turn ended while background work it started is still running (a background shell, subagent, monitor or workflow, as the engine lists them at the turn's Stop) shows `◔` in cyan instead of `○` idle, with `bg: <first job's description> +N` as its activity (never the command); the next turn that stops with nothing in flight returns it to `○`. A subagent's turn ending no longer marks the main session idle mid-turn. Tests: `plugins/status-hud/tests/e2e.test.ts`.
+- **New, status HUD: background state.** (PRS 2026-10-19)
 - **Changed: the GitHub repository is now `Artekka/orcastration-kit`** (was `claude-orchestration-kit`). Install with `claude plugin marketplace add Artekka/orcastration-kit`; the plugin id (`orchestration-kit@artekka-kits`), its slash commands and `~/.orchestration-kit/` do not change. GitHub redirects the old URL, so existing installs keep working. README, GETTING-STARTED, CONTRIBUTING, SECURITY, the issue-template link and the Code of Conduct contact link use the new name; the plugin manifest gains `homepage` and `repository`.
 - **Fixed: a team start with no Claude running exited silently.** (PRS 2026-10-17)
 - **New: `gate-throttle.sh --log <file>`.** (PRS 2026-10-15)
