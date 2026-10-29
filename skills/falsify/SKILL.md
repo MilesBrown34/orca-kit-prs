@@ -65,6 +65,9 @@ A falsify that skips one of these has proved nothing, in either direction:
 - [ ] **Two fixes that cover for each other are stacked.** Switch them off in steps from one saved state (A off; A and B off), and predict which step reds which check.
 - [ ] **A green mutant sends you to the second path.** Find the other code that reaches the same result, mutate both, and state what the check proves: at least one path works.
 - [ ] **Stderr stays visible and one target tree is named.** No `2>/dev/null` on anything that edits files; after restore, diff-verify every tree the command could have reached.
+- [ ] **The check was calibrated before it judged anything.** It passed a null edit (no change) and the output already accepted, and failed a known-bad change; a fail without that may be the check's own floor.
+- [ ] **A ranking or similarity metric ordered known pairs.** Every right pair beat every wrong pair (a shifted frame, the other view), with the margin reported, before it ranked candidates.
+- [ ] **A check built for a complaint is red on the rejected output itself,** not only on an invented broken case, and is labelled against the pre-fix code: red there reproduces the complaint; green there makes it a regression guard only.
 
 ## Mutant design
 
@@ -78,9 +81,13 @@ A falsify that skips one of these has proved nothing, in either direction:
 | **Decompose, don't replay** — channel × population × layer × site | Replaying the spec's named mutants passes by construction |
 | **Discriminating mutant** — kills the new test, old one stays green | Proves the new test earns its place, not just that it can fail |
 | **Old-guard survival** — run the PRE-fix test against the same mutant | The only proof of a claim that "the old guard was blind" |
+| **One mutant per side and per path** — break the lower and the upper limit separately; one mutant per trigger path (tick, load, equip …) | An inert side or path hides behind the one you broke |
+| **Flip the policy constant once** — change the tuned value and see which pins go red | Finds pins bound to today's scenario instead of the rule |
+| **Paste the guard onto the other kind** — copy it to a different kind of object, nest it away from the use, make it a no-op (`if G: pass`), join it with `and not G` | A guard counts only where it controls the use; each of these must go red |
 
 ## Rules
 
+- **Largest step, hardest case first.** Before a ladder of edits, try the largest step on the hardest real case; small steps first hide the method's ceiling.
 - **Anchor by line or a unique block, never first grep match.** A wrong anchor gives a false survivor; an escaped char gives an unapplied mutant. Print the resolved line.
 - **Probe the fixtures before predicting.** On the unmutated tree, count how many runs reach the mutated line with a non-trivial input; zero reach ⇒ predict SURVIVOR. Keep probes out of the tree (the evidence dir from ORCHESTRATION.md, never `/tmp`) so they can't inflate counts and survive a reboot.
 - **Re-run the battery after adding any default/fallback.** A fixture whose value equals the fallback makes forwarding and defaulting indistinguishable.
