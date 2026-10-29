@@ -4,7 +4,7 @@ Newest first.
 
 ## Unreleased
 
-- **Changed: the seat's subagents do not write code either.** The orchestrate skill said the seat writes board, briefs, reconciles, deploys and logs and never feature code; a seat read that as a rule about its own hands and sent a fix round to its own subagent in a worktree, then merged on its own check with no READ. §11 and §4 now say a seat subagent researches, reviews or moves text, and a build or a fix round, however small, goes to a builder sibling and gets a READ. The glossary's Seat entry says the same.
+- **Changed: the seat's subagents do not write code either.** (PRS 2026-10-27)
 - **Changed: the GitHub repository is now `Artekka/orcastration-kit`** (was `claude-orchestration-kit`). Install with `claude plugin marketplace add Artekka/orcastration-kit`; the plugin id (`orchestration-kit@artekka-kits`), its slash commands and `~/.orchestration-kit/` do not change. GitHub redirects the old URL, so existing installs keep working. README, GETTING-STARTED, CONTRIBUTING, SECURITY, the issue-template link and the Code of Conduct contact link use the new name; the plugin manifest gains `homepage` and `repository`.
 - **Fixed: a team start with no Claude running exited silently.** (PRS 2026-10-17)
 - **New: `gate-throttle.sh --log <file>`.** (PRS 2026-10-15)
