@@ -4,6 +4,7 @@ Newest first.
 
 ## Unreleased
 
+- **Changed: the falsify skill has a "Before a result counts" checklist** (PRS 2026-10-26)
 - **Changed: the falsify skill has a "Before a result counts" checklist** of the mistakes that kept faking falsify results: a diff that only adds lines, a mutant that moved nothing the check reads, an empty selection, a prediction that names no failure line, a run outside the gate's mode, two fixes covering for each other, a green mutant with a second path, and hidden stderr. Step 5 now keeps the full log and counts reds from it instead of reading the last 40 lines, which could hide reds past the cut.
 - **Changed: the GitHub repository is now `Artekka/orcastration-kit`** (was `claude-orchestration-kit`). Install with `claude plugin marketplace add Artekka/orcastration-kit`; the plugin id (`orchestration-kit@artekka-kits`), its slash commands and `~/.orchestration-kit/` do not change. GitHub redirects the old URL, so existing installs keep working. README, GETTING-STARTED, CONTRIBUTING, SECURITY, the issue-template link and the Code of Conduct contact link use the new name; the plugin manifest gains `homepage` and `repository`.
 - **Fixed: a team start with no Claude running exited silently.** (PRS 2026-10-17)
