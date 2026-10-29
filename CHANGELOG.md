@@ -4,8 +4,7 @@ Newest first.
 
 ## Unreleased
 
-- **New: the git guard refuses a force-push.** (PRS 2026-10-26)
-- **New: the git guard refuses a force-push.** With `git_guard: on`, `git push -f` / `--force` / `--force-with-lease` / `--mirror` and a `+branch` refspec are blocked: a force-push rewrites a branch other sessions may have pulled, reviewed or built on. Claude is told to push the rewritten work as a new branch (`git push origin HEAD:<branch>-r2`) or to merge `origin/main` so the push stays a fast-forward. A human can still force-push in their own terminal.
+- **New: the git guard refuses a force-push, a commit after `;`, and a soft reset onto a remote branch.** (PRS 2026-10-29)
 - **Changed: the GitHub repository is now `Artekka/orcastration-kit`** (was `claude-orchestration-kit`). Install with `claude plugin marketplace add Artekka/orcastration-kit`; the plugin id (`orchestration-kit@artekka-kits`), its slash commands and `~/.orchestration-kit/` do not change. GitHub redirects the old URL, so existing installs keep working. README, GETTING-STARTED, CONTRIBUTING, SECURITY, the issue-template link and the Code of Conduct contact link use the new name; the plugin manifest gains `homepage` and `repository`.
 - **Fixed: a team start with no Claude running exited silently.** (PRS 2026-10-17)
 - **New: `gate-throttle.sh --log <file>`.** (PRS 2026-10-15)

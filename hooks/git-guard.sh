@@ -9,6 +9,9 @@
 #   git pull --rebase | -r   - races on the shared .git/FETCH_HEAD
 #   git push -f | --force | --force-with-lease | --mirror | +<refspec>
 #                            - rewrites a shared branch; work another session built on it is lost
+#   <cmd> ; git commit ...   - `;` commits even when the command before it (a gate) failed
+#   git reset --soft origin/<b> | upstream/<b> | refs/remotes/...
+#                            - after main moves, squashing onto it silently reverts its newer commits
 #
 # NO-OP (exit 0, no output) unless ALL hold:
 #   - the session's repo carries the opt-in marker docs/orchestration/.kit-hooks;
@@ -58,10 +61,10 @@ function decode(s,   out, i, c, n) {   # JSON string body -> text
   return out
 }
 function endword() { if (inword) { nw++; W[nw] = cur }; cur = ""; inword = 0 }
-function endseg() { endword(); if (nw > 0) check(); nw = 0 }
+function endseg() { endword(); if (nw > 0) { check(); hadprev = 1 }; nw = 0 }
 function isopt(x) { return substr(x, 1, 1) == "-" }
 function hit(r) { if (verdict == "") verdict = r }
-function check(   k, w, sub_, j, a, dd, upd, np, skip, m, ch, base) {
+function check(   k, w, sub_, j, a, dd, upd, np, skip, m, ch, base, soft, ref) {
   k = 1
   while (k <= nw) {
     w = W[k]
@@ -111,6 +114,7 @@ function check(   k, w, sub_, j, a, dd, upd, np, skip, m, ch, base) {
     return
   }
   if (sub_ == "commit") {
+    if (before == ";" && hadprev) { hit("semicolon-commit"); return }
     skip = 0
     for (j = k + 1; j <= nw; j++) {
       a = W[j]
@@ -131,6 +135,17 @@ function check(   k, w, sub_, j, a, dd, upd, np, skip, m, ch, base) {
         }
       }
     }
+    return
+  }
+  if (sub_ == "reset") {
+    soft = 0; ref = ""
+    for (j = k + 1; j <= nw; j++) {
+      a = W[j]
+      if (a == "--") break
+      if (a == "--soft") soft = 1
+      else if (!isopt(a) && ref == "") ref = a
+    }
+    if (soft && ref ~ /^(origin|upstream)\// || soft && ref ~ /^refs\/remotes\//) hit("reset-soft-remote")
     return
   }
   if (sub_ == "pull") {
@@ -172,13 +187,13 @@ function check(   k, w, sub_, j, a, dd, upd, np, skip, m, ch, base) {
   }
 }
 function tokenize(t,   i, L, c, n, nl, line, d, q, sp) {
-  i = 1; L = length(t); st = ""; sd = 0; cur = ""; inword = 0; nw = 0; nh = 0
+  i = 1; L = length(t); st = ""; sd = 0; cur = ""; inword = 0; nw = 0; nh = 0; before = ""; hadprev = 0
   while (i <= L) {
     c = substr(t, i, 1)
     if (st == "s") { if (c == "\047") st = ""; else cur = cur c; i++; continue }
     if (st == "d") {
       if (c == "\\") { n = substr(t, i + 1, 1); if (n != "\n") cur = cur n; i += 2; continue }
-      if (c == "$" && substr(t, i + 1, 1) == "(") { sd++; S[sd] = "d"; st = ""; endseg(); i += 2; continue }
+      if (c == "$" && substr(t, i + 1, 1) == "(") { sd++; S[sd] = "d"; st = ""; endseg(); before = "("; hadprev = 0; i += 2; continue }
       if (c == "\"") st = ""; else cur = cur c
       i++; continue
     }
@@ -188,7 +203,7 @@ function tokenize(t,   i, L, c, n, nl, line, d, q, sp) {
     if (c == "#" && !inword) { while (i <= L && substr(t, i, 1) != "\n") i++; continue }
     if (c == " " || c == "\t") { endword(); i++; continue }
     if (c == "\n") {
-      endseg(); i++
+      endseg(); before = "\n"; i++
       for (q = 1; q <= nh; q++) {            # skip heredoc bodies queued on this line
         while (i <= L) {
           nl = index(substr(t, i), "\n"); line = (nl ? substr(t, i, nl - 1) : substr(t, i))
@@ -212,10 +227,10 @@ function tokenize(t,   i, L, c, n, nl, line, d, q, sp) {
       }
       nh++; HD[nh] = d; HS[nh] = sp; continue
     }
-    if (c == "$" && substr(t, i + 1, 1) == "(") { sd++; S[sd] = ""; endseg(); i += 2; continue }
-    if (c == "(") { sd++; S[sd] = ""; endseg(); i++; continue }
-    if (c == ")") { endseg(); if (sd > 0) { st = S[sd]; sd-- }; i++; continue }
-    if (c == ";" || c == "&" || c == "|" || c == "`") { endseg(); i++; continue }
+    if (c == "$" && substr(t, i + 1, 1) == "(") { sd++; S[sd] = ""; endseg(); before = "("; hadprev = 0; i += 2; continue }
+    if (c == "(") { sd++; S[sd] = ""; endseg(); before = "("; hadprev = 0; i++; continue }
+    if (c == ")") { endseg(); before = ")"; if (sd > 0) { st = S[sd]; sd-- }; i++; continue }
+    if (c == ";" || c == "&" || c == "|" || c == "`") { endseg(); before = c; i++; continue }
     cur = cur c; inword = 1; i++
   }
   endseg()
@@ -244,6 +259,8 @@ case "$rule" in
   add-all) why="Staging everything is blocked (git add -A / --all / . / :/ / -u without paths): in a repo shared by several sessions it stages other sessions' uncommitted files into your commit. Stage explicit paths instead: git add path/to/file another/file." ;;
   commit-all) why="git commit -a / --all is blocked: it commits every modified tracked file, including other sessions' work in progress. Stage explicit paths, then commit: git add path/to/file && git commit -m msg." ;;
   push-force) why="A force-push is blocked (git push -f / --force / --force-with-lease / --mirror / a +branch refspec): it rewrites a branch other sessions may have pulled, reviewed or built on, and their work silently drops off it. Instead push the rewritten work as a new branch (git push origin HEAD:<branch>-r2) and tell whoever coordinates, or add your commits on top of the pushed branch (git merge origin/main) so the push stays a fast-forward." ;;
+  semicolon-commit) why="git commit after a ; is blocked: ; runs the commit even when the command before it failed, so a red gate still commits. Join them with && instead: run-the-gate && git commit -m msg (or git add path && git commit -m msg)." ;;
+  reset-soft-remote) why="git reset --soft onto a remote branch (origin/..., upstream/...) is blocked: once that branch has moved, the one commit you make next silently reverts every newer commit on it, because your index still holds the older copies. Squash onto the merge base instead: git reset --soft \$(git merge-base HEAD origin/main), then read git show --stat before pushing; a file the branch never touched is a revert." ;;
   pull-rebase) why="git pull --rebase is blocked: sessions sharing one .git race on .git/FETCH_HEAD (Cannot rebase onto multiple branches). Use: git fetch origin && git rebase origin/main (retry the fetch once if it reports cannot lock ref)." ;;
   *) exit 0 ;;
 esac
