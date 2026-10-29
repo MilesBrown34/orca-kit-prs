@@ -36,6 +36,8 @@ Files the row may touch (globs ok). Everything else is out of fence: stop and me
 
 The class and command from `ORCHESTRATION.md` → Gate, run from INSIDE the worktree. Expected delta:
 `<stage> +N tests`. Name any extra suites the change needs.
+Commit first, then run it as `bash scripts/gate-throttle.sh --log <evidence-dir>/<row>-gate.log <gate command>`:
+the log's `SHA` line must equal the committed tip. Do not edit the tree while the gate waits for a slot.
 
 ## Report protocol
 

@@ -17,6 +17,7 @@ git fetch origin || { sleep 2; git fetch origin; } && git rebase origin/main
 
 0. Fresh seat → do the `/orchestration-kit:orient` reads first (Steps 0–6; skip its READY step — you are the one receiving READYs).
 1. Read the board top to bottom (archives: grep only, never whole). Another `ORCHESTRATOR ACTIVE` banner with a live seat → do NOT take it; ask the human.
+   **Audit before you assign anything** after a crash, a recycle or taking over a seat: every worktree's dirty files and unpushed commits, gate logs lost with a temp folder, locks held by dead sessions, scratch files newer than the branch tip. The last session may have left work half done.
 2. Post the banner at the TOP of the board (shape: the board's "Seat banner — SHAPE ONLY" section, or `${CLAUDE_PLUGIN_ROOT}/templates/AGENT_BOARD.md`): seat name + `[ref]`, era/date, your row prefix, model + window **from your own env block**, measured fill, standing rules. **Commit + push immediately** (board-write recipe, §6) — an unpushed banner is invisible.
 3. Measure yourself: `python3 scripts/ctx-fill.py` → paste `current` into the banner.
 4. Load the cross-session tools: `ToolSearch` with `select:ListAgents,SendMessage` first (they are deferred tools: calling one unloaded fails). `ListAgents` shows who is **reachable**, never who is **ready** — terminal uptime survives `/clear`. Build the roster from READY signals only (§3). Re-run `ListAgents` right before publishing any roster/dispatch plan.
@@ -43,6 +44,7 @@ Every brief is a hypothesis — a builder correcting it upward is expected, not 
 |---|---|
 | **Never illustrate a "find every X" requirement.** Name the enumeration itself as the deliverable ("send me the table, then fix"); the verifier rebuilds it independently | An illustration inside a requirement is read AS the requirement — two rows guarded exactly the 3 named sites of populations of 8 and 13 (LESSON 42) |
 | **"X is broken" rows report the POPULATION COUNT before building.** Say "zero" out loud on the row | Zero is a finding; two rows died that way in one session (LESSON 58) |
+| **A redo round toward a person's target starts with today's result beside their own reference** (one sheet, before the round) | A summary of what they want can carry the wrong detail, and the whole round chases it |
 
 ## 3 · DAG + assignment
 
