@@ -112,7 +112,7 @@ The quiet-mode values above are the defaults: the flag file the kit's `scripts/q
 | `ignoreApps` | `cmd,powershell,curl,tasklist,…` | Windows programs that never get a chip of their own (helpers run all the time). |
 | `windowsAppsCmd` | tasklist one-liner | Prints Windows' running programs (CSV), so programs started outside a session count too. Empty skips Windows. |
 | `comfyUrl` | `http://127.0.0.1:8188` | A ComfyUI server; its queue gets a chip while it has jobs. Asked through Windows' own curl on WSL (a server on Windows is out of WSL's reach). Empty skips it. |
-| `boardFile` | `docs/orchestration/AGENT_BOARD.md` | The project's board; the live version comes from its DEPLOY slot line. |
+| `boardFile` | `docs/orchestration/AGENT_BOARD.md` | The project's board; the live version comes from its DEPLOY slot line. The last one read is kept in the status dir, so a board rewrite that drops the line does not blank the chip. |
 | `kitRuntimeDir` | `~/.orchestration-kit/runtime` | Where the kit's launcher records project tab colors (`tab-colors`), read for project dots. |
 | `statusDir` | `~/.claude-status-hud` | Shared directory. All sessions must use the same one. |
 | `sessionName` | (detected) | Override the detected session name. |

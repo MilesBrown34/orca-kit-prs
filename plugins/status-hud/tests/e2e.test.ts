@@ -305,3 +305,27 @@ test('tracked programs a session started ride its heartbeat and draw as a chip; 
   expect(tree).toContain('live v0.2')
   expect(tree).toContain('godot: Orca')
 })
+
+test('the live version stays when a board rewrite drops the DEPLOY line (kept in the status dir for the next session); a new version replaces it', async ($, on) => {
+  const w = world(on, { repo: '/r/app' })
+  const BOARD = '/r/app/docs/orchestration/AGENT_BOARD.md'
+  w.files.set(BOARD, '**Slots:** DEPLOY FREE (live v0.2) · LOG FREE (next 1)\n')
+  await $.session.start(START)
+  await w.clock.advance(500)
+  const drawn = async () => JSON.stringify(await (await $.ui.mount({ plugin: 'status-hud', surface: 'terminal', component: 'AbovePrompt', props: BAND })).drawn())
+  expect(await drawn()).toContain('live v0.2')
+  // the seat archives the board and its new block has no slots line
+  w.files.set(BOARD, '## ORCHESTRATOR ACTIVE\n')
+  await w.clock.advance(61_000)
+  expect(await drawn()).toContain('live v0.2')
+  // the next ship names a new version
+  w.files.set(BOARD, '**Slots:** DEPLOY FREE (live v0.3) · LOG FREE (next 2)\n')
+  await w.clock.advance(61_000)
+  expect(await drawn()).toContain('live v0.3')
+  w.files.set(BOARD, '## ORCHESTRATOR ACTIVE\n')
+  await w.clock.advance(61_000)
+  const tree = await drawn()
+  expect(tree).toContain('live v0.3')
+  expect(tree).not.toContain('live v0.2')
+  expect(w.files.get('/home/u/.claude-status-hud/live-_r_app')).toBe('v0.3\n')
+})

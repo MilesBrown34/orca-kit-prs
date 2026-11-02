@@ -135,7 +135,19 @@ async function refreshColor(c: Config, io: Io, now: number): Promise<void> {
   const overlay = S.repo ? ((await io.read(`${S.repo}/docs/orchestration/ORCHESTRATION.md`)) ?? '') : ''
   S.me.color = projectColor(S.repo, colors, overlay, S.tabColor)
   const board = S.repo ? ((await io.read(`${S.repo}/${c.board}`)) ?? '') : ''
-  S.live = liveVersion(board)
+  S.live = await rememberedLive(c, io, liveVersion(board))
+}
+
+/**
+ * The live version survives a board rewrite that drops the DEPLOY line: the last one read is kept per project in the
+ * status dir and shown until the board names a version again (a newer ship replaces it).
+ */
+async function rememberedLive(c: Config, io: Io, fromBoard: string): Promise<string> {
+  if (!S.repo) return fromBoard
+  const path = `${c.statusDir}/live-${S.repo.replace(/[^\w.-]+/g, '_')}`
+  if (fromBoard === '') return ((await io.read(path)) ?? '').trim()
+  if (fromBoard !== S.live) await io.writeAtomic(path, `${fromBoard}\n`)
+  return fromBoard
 }
 
 /** The tracked programs this session started and is still waiting on: its claude process's descendants. */
