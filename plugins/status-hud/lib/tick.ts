@@ -17,7 +17,7 @@ export const newTickState = (): TickState => ({ prevTokens: new Map(), flash: {}
  * crossings. Everything the drawing needs ends up in the returned snapshot; drawing never touches disk.
  */
 export async function tick(
-  io: Io, c: Config, own: Heartbeat, ts: TickState, exists: (p: string) => Promise<boolean>, cwd = '',
+  io: Io, c: Config, own: Heartbeat, ts: TickState, exists: (p: string) => Promise<boolean>, quietDir = '',
 ): Promise<Snapshot> {
   const now = await io.now()
   await io.writeAtomic(hbPath(c, own.id), serializeHeartbeat({ ...own, at: now }))
@@ -55,5 +55,5 @@ export async function tick(
   }
   const quietMode = await quietModeOn(io, c, exists)
   if (ts.quietErr && ts.quietErr.until <= now) ts.quietErr = null
-  return { now, selfId: own.id, sessions, host, quietMode, quietAvail: await quietAvailable(c, cwd, exists), quietErr: ts.quietErr }
+  return { now, selfId: own.id, sessions, host, quietMode, quietAvail: await quietAvailable(c, quietDir, exists), quietErr: ts.quietErr }
 }

@@ -21,7 +21,7 @@ export type Config = {
   quietStatusCmd: string
   quietOnCmd: string
   quietOffCmd: string
-  /** The file (relative to the session directory, or absolute) the on/off commands need; the chip is hidden without it. Empty skips the check. */
+  /** The file (relative to the installed kit's folder, else the session directory, or absolute) the on/off commands need; the chip is hidden without it. Empty skips the check. */
   quietRequiresFile: string
 }
 

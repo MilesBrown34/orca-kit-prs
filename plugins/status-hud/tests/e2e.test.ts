@@ -82,6 +82,24 @@ test('Quiet Mode chip: press runs the configured command (mocked)', { options: {
   expect(seen()).toBe(false)
   await band.press({ key: 'p-quiet' })
   expect(seen()).toBe(true)
+  // no kit installed: the command runs from the session's directory, where its script is
+  expect(w.cwds[w.ran.findIndex(a => a[2] === 'bash g.sh on')]).toBe('/x')
+})
+
+test('Quiet Mode chip: with the kit installed, the chip shows and its command runs from the kit\'s folder, wherever the session stands', { options: { quietModeOnCmd: 'bash g.sh on', quietModeOffCmd: 'bash g.sh off', quietModeStatusCmd: 'false' } }, async ($, on) => {
+  const w = world(on)
+  w.files.set('/home/u/.claude-acct2/plugins/installed_plugins.json', JSON.stringify({ version: 2, plugins: { 'other@m': [{ installPath: '/o' }], 'orchestration-kit@m': [{ installPath: '/k' }] } }))
+  w.files.set('/k/scripts/quiet-mode.sh', '')
+  await $.session.start(START)
+  await w.clock.advance(500)
+  const band = await $.ui.mount({ plugin: 'status-hud', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  expect(JSON.stringify(await band.drawn())).toContain('WORK mode')
+  await band.press({ key: 'p-quiet' })
+  const i = w.ran.findIndex(a => a[2] === 'bash g.sh on')
+  expect(i).toBeGreaterThanOrEqual(0)
+  expect(w.cwds[i]).toBe('/k')
+  // every other spawn still runs from home
+  expect(w.cwds.filter((c, j) => j !== i).every(c => c === '/home/u')).toBe(true)
 })
 
 test('the heartbeat never carries the prompt text, a raw command, a path or a URL; the file is chmod 600 and the dir 700', { options: { refreshSeconds: 1 } }, async ($, on) => {

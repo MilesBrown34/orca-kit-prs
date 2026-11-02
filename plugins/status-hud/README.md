@@ -112,7 +112,7 @@ The quiet-mode values above are the defaults: the flag file the kit's `scripts/q
 | `quietModeFlagFile` | `~/.orchestration-kit/runtime/quiet-mode` | If this file exists, quiet mode is on (cheap check, preferred). A leading `~` means your home. |
 | `quietModeStatusCmd` | (none) | Alternative, used when the flag file is empty: exit code 0 means on. |
 | `quietModeOnCmd` / `quietModeOffCmd` | `bash scripts/quiet-mode.sh on` / `off` | Run by the Quiet Mode chip and `/hud quiet`. Both are needed for the chip to be clickable. |
-| `quietModeRequiresFile` | `scripts/quiet-mode.sh` | The chip shows only when this file exists in the session's directory (or quiet mode is already on). Empty always shows it. |
+| `quietModeRequiresFile` | `scripts/quiet-mode.sh` | The chip shows only when this file exists in the installed kit's folder, else the session's directory (or quiet mode is already on). The on/off commands run from that same folder, so the default commands run the kit's own script in every session. Empty always shows it. |
 
 The Quiet Mode chip is hidden unless a flag file or status command is configured and the script above exists here. It is a button: click it while the band has focus (click the band, or ctrl+x then tab), or use `/hud quiet`. `/hud help` explains it. If you use your own on/off commands, set `quietModeRequiresFile` to an empty value to keep the chip.
 
