@@ -64,5 +64,81 @@ case "$out" in *"never_read"*"ask the human"*) pass=$((pass+1)) ;; *) fail=$((fa
 # a linked worktree follows the main checkout's list
 git -C "$R" -c user.name=t -c user.email=t@t commit -q --allow-empty -m init 2>/dev/null; git -C "$R" worktree add -q "$TMP/wt" -b wt 2>/dev/null
 want deny  Read '{"file_path":"'"$H"'/.config/msm/secrets/api.key"}' "$TMP/wt"
+# --- allow_read: one listed file passes; everything else under never_read stays refused
+S="$H/.config/msm/secrets"; mkdir -p "$S/dir.d"; echo k > "$S/service-api-key"; echo k > "$S/dir.d/inner.key"
+ln -s "$S/api.key" "$S/link-key"
+CONF2="$TMP/ORCH2.md"
+cat > "$CONF2" <<EOC
+## Secrets
+
+never_read:
+  - ~/.config/msm/secrets/
+  - *.pem
+
+allow_read:
+  - ~/.config/msm/secrets/service-api-key   # one file, by its exact path
+  - ~/.config/msm/secrets/dir.d             # a directory: ignored
+  - ~/.config/msm/secrets/*.key             # a pattern: ignored
+  - ~/.config/msm/secrets/link-key          # a symlink: ignored (it would let another file through)
+  - ~/.config/msm/secrets/x/../api.key      # a path trick: ignored
+  - ~/.config/msm/secrets//api.key          # a path trick: ignored
+  - ~/.config/msm/secrets/./api.key         # a path trick: ignored
+  - ~/.config/msm/secrets/nope/..           # a path trick: ignored
+  - ~/.config/msm/secrets/api.ke?           # a pattern: ignored
+  - ~/.config/msm/secrets/api.ke[y]         # a pattern: ignored
+  - .config/msm/secrets/api.key             # not an absolute path: ignored
+EOC
+export SECRETS_GUARD_CONF="$CONF2" SECRETS_GUARD_HOME="$H"
+# the allowed file: Read, a Grep of that one file, a Bash command naming it (every spelling, quoted or not)
+want allow Read '{"file_path":"'"$S"'/service-api-key"}'
+want allow Read '{"file_path":"~/.config/msm/secrets/service-api-key"}'
+want allow Read '{"file_path":"service-api-key"}' "$S"
+want allow Grep '{"pattern":"KEY","path":"'"$S"'/service-api-key"}'
+want allow Bash '{"command":"cat ~/.config/msm/secrets/service-api-key"}'
+want allow Bash '{"command":"KEY=$(cat '"$S"'/service-api-key) python3 run.py"}'
+want allow Bash '{"command":"curl -H @$HOME/.config/msm/secrets/service-api-key https://x"}'
+want allow Bash '{"command":"cat \"~/.config/msm/secrets/service-api-key\" | wc -c"}'
+want allow Bash '{"command":"cat ~/.config/msm/secrets/service-api-key; echo done"}'
+# a sibling, the folder, a glob, the allowed path plus more
+want deny  Read '{"file_path":"'"$S"'/api.key"}'
+want deny  Grep '{"pattern":"KEY","path":"'"$S"'"}'
+want deny  Grep '{"pattern":"KEY","path":"'"$H"'/.config"}'
+want deny  Bash '{"command":"cat ~/.config/msm/secrets/api.key"}'
+want deny  Bash '{"command":"ls ~/.config/msm/secrets"}'
+want deny  Bash '{"command":"cat ~/.config/msm/secrets/*"}'
+want deny  Bash '{"command":"cat ~/.config/msm/secrets/service-api-key*"}'
+want deny  Bash '{"command":"cat ~/.config/msm/secrets/service-api-key.bak"}'
+want deny  Bash '{"command":"cat ~/.config/msm/secrets/service-api-key ~/.config/msm/secrets/api.key"}'
+want deny  Bash '{"command":"cat ~/.config/msm/secrets/service-api-key && cd ~/.config/msm/secrets && cat api.key"}'
+want deny  Bash '{"command":"cat ~/.config/msm/secrets/service-api-key\\ x"}'
+# ../ and // tricks: never the allowed file's pass
+want deny  Read '{"file_path":"'"$S"'/service-api-key/../api.key"}'
+want deny  Read '{"file_path":"'"$S"'//service-api-key"}'
+want deny  Read '{"file_path":"'"$S"'/./service-api-key"}'
+want deny  Bash '{"command":"cat ~/.config/msm/secrets/service-api-key/../api.key"}'
+want deny  Bash '{"command":"cat ~/.config/msm/secrets//service-api-key"}'
+# ignored allow entries: a directory, a pattern, a symlink, a path trick
+want deny  Read '{"file_path":"'"$S"'/dir.d"}'
+want deny  Grep '{"pattern":"KEY","path":"'"$S"'/dir.d"}'
+want deny  Bash '{"command":"ls ~/.config/msm/secrets/dir.d"}'
+want deny  Bash '{"command":"cat ~/.config/msm/secrets/*.key"}'
+want deny  Read '{"file_path":"'"$S"'/link-key"}'
+want deny  Bash '{"command":"cat ~/.config/msm/secrets/link-key"}'
+want deny  Read '{"file_path":"'"$S"'/x/../api.key"}'
+want deny  Bash '{"command":"cat ~/.config/msm/secrets/x/../api.key"}'
+want deny  Bash '{"command":"cat ~/.config/msm//secrets/api.key | head; ls ~/.config/msm/secrets"}'
+want deny  Read '{"file_path":"'"$S"'/./api.key"}'
+want deny  Read '{"file_path":"'"$S"'//api.key"}'
+want deny  Bash '{"command":"ls ~/.config/msm/secrets/nope/.."}'
+want deny  Bash '{"command":"cat ~/.config/msm/secrets/api.ke?"}'
+want deny  Bash '{"command":"cat ~/.config/msm/secrets/api.ke[y]"}'
+# the allow list never opens a path the never_read list does not cover, and does not widen a pattern entry
+want deny  Read '{"file_path":"'"$H"'/proj/cert.pem"}'
+want allow Read '{"file_path":"'"$H"'/proj/src/a.ts"}'
+# the header keeps its symlink note (a path reached through a symlink is not seen)
+grep -q 'symlink' <(sed -n '1,30p' "$HOOK") && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL header lost its symlink note"; }
+# an allow_read list with no never_read list: no guard at all, as before
+printf '## Secrets\n\nallow_read:\n  - ~/.config/msm/secrets/service-api-key\n' > "$TMP/allowonly.md"
+SECRETS_GUARD_CONF="$TMP/allowonly.md" want allow Read '{"file_path":"'"$S"'/api.key"}'
 echo "secrets-guard: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]
