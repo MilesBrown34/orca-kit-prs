@@ -80,7 +80,8 @@ never_read:
 
 To let ONE file under a listed path through (a key a tool must read), the human adds its exact path under
 `allow_read:`; it stays allowed until the line is removed. Only that file passes (Read, a Grep of that file, a
-Bash command naming it); the folder, its other files, a glob or a `..` / `//` spelling stay refused. An entry that
+Bash command naming it as a plain word, e.g. `KEY_FILE=<file> tool`); the folder, its other files, a glob, a `..` / `//`
+spelling, and the file named inside `$( )`, backticks, `${ }` or with more after it stay refused. An entry that
 is a directory, a symlink or a pattern is ignored. Leave it empty unless the human asks.
 
 ```
