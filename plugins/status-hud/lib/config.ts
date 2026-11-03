@@ -9,6 +9,9 @@ export type Config = {
   commitCritPct: number
   commitCmd: string
   commitMs: number
+  /** Prints the CPU temperature in °C; empty disables it. */
+  cpuTempCmd: string
+  cpuTempMs: number
   mounts: string[]
   /** Session names that draw the HUD; empty means every session. Hidden sessions still write heartbeats. */
   showForNames: string[]
@@ -42,6 +45,8 @@ export function parseConfig(o: PluginOptions, home: string): Config {
     commitCritPct: num(o.commitCritPct, 95),
     commitCmd: str(o.commitCmd),
     commitMs: Math.max(5, num(o.commitSeconds, 30)) * 1000,
+    cpuTempCmd: str(o.cpuTempCmd),
+    cpuTempMs: Math.max(5, num(o.cpuTempSeconds, 15)) * 1000,
     mounts: str(o.mounts, '/').split(',').map(s => s.trim()).filter(Boolean),
     showForNames: str(o.showForNames, 'Orca').split(',').map(s => s.trim()).filter(Boolean),
     statusDir: dir === '' ? `${home}/.claude-status-hud` : dir.replace(/^~(?=\/|$)/, home),

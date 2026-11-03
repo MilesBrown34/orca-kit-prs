@@ -3,8 +3,7 @@
 Newest first.
 
 ## Unreleased
-- **New, status HUD: CPU temperature.** With a reading, the CPU line shows the load and the CPU's temperature (`5.1 72°C`, the thread count stays in the HOST title); without one it keeps `5.1/16t`. `cpuTempCmd` (every `cpuTempSeconds`, default 15) reads Linux's own sensor (coretemp, k10temp) and, on WSL, which has none, LibreHardwareMonitor's readings on Windows (CPU Package, else Tctl/Tdie, else Core Max). A failed read keeps the last value for two spans. Tests: `plugins/status-hud/tests/host.test.ts`, `tests/layout.test.ts`.
-- **New, status HUD: CPU temperature.** (PRS 2026-10-19)
+
 - **Changed: the GitHub repository is now `Artekka/orcastration-kit`** (was `claude-orchestration-kit`). Install with `claude plugin marketplace add Artekka/orcastration-kit`; the plugin id (`orchestration-kit@artekka-kits`), its slash commands and `~/.orchestration-kit/` do not change. GitHub redirects the old URL, so existing installs keep working. README, GETTING-STARTED, CONTRIBUTING, SECURITY, the issue-template link and the Code of Conduct contact link use the new name; the plugin manifest gains `homepage` and `repository`.
 - **Fixed: a team start with no Claude running exited silently.** (PRS 2026-10-17)
 - **New: `gate-throttle.sh --log <file>`.** (PRS 2026-10-15)
@@ -12,6 +11,7 @@ Newest first.
 - **New, status HUD: model badges.** (PRS 2026-10-14)
 - **New, status HUD: session state at a glance.** (PRS 2026-10-14)
 - Thanks to @MilesBrown34 for #3, #4, #10, #11 and #12.
+
 ## 0.9.0 — 2026-10-14
 
 Team mode is now the default; Solo is a practice mode.
