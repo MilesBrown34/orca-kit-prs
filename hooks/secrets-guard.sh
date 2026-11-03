@@ -37,16 +37,17 @@
 # and ".."; a word that is itself a command, as in bash -c '..', sh -c "..", "$(..)", is split again, three
 # levels deep; each word is checked whole and in its pieces around = @ : ,). cd targets chain: a relative one is
 # resolved against the cd before it as well as the working directory (cd a && cd b = a/b); a bare `cd` goes home;
-# -L/-P/-e/-@ flags are skipped. `~` inside quotes is taken as home too (bash would not expand it: refuses more).
+# -L/-P/-e/-@ flags are skipped and `--` ends them. `~` inside quotes is taken as home too (bash would not expand
+# it: refuses more).
 # It is a speed bump for an agent, not a sandbox: a path reached through a variable, a glob in the folder part
 # (`secre*/`) or in the file-name part of a file entry (`~/.net*`), brace expansion (`~/.{netrc,x}`), `~user`,
-# escapes inside $'..' (\x2f), a directory flag other than cd/pushd (`tar -C`, `git -C`, `env -C`, `make -C`),
-# `cd -`, a command nested deeper than three levels, a symlink (links are not followed) or a script is not seen,
-# nor what the program does with K once it has it (a script or interpreter that derives the folder from the
-# NAME=K value, a file it writes that a later command runs). Known gaps, by choice: pattern entries are not
-# checked in Bash commands (only on the paths Read and Grep name), and the Glob tool is not registered, so the
-# file NAMES in a listed folder can be listed (never their contents). Deliberately no set -e: a hook must never
-# break a tool call.
+# `~+`, `~-`, escapes inside $'..' (\x2f), a directory flag other than cd/pushd (`tar -C`, `git -C`, `env -C`,
+# `make -C`), `cd -`, a command nested deeper than three levels, a symlink (links are not followed) or a script
+# is not seen, nor what the program does with K once it has it (a script or interpreter that derives the folder
+# from the NAME=K value, a file it writes that a later command runs). Known gaps, by choice: pattern entries are
+# not checked in Bash commands (only on the paths Read and Grep name), and the Glob tool is not registered, so
+# the file NAMES in a listed folder can be listed (never their contents). Deliberately no set -e: a hook must
+# never break a tool call.
 # Dependencies: bash, git, grep, sed, awk, sort.
 #
 # Test mode: SECRETS_GUARD_CONF=<file> and SECRETS_GUARD_HOME=<dir> skip the repo lookup and use that list.
@@ -164,9 +165,10 @@ norm() { awk -v mode="$1" -v home="$home" -v wd="$wd" -v ents="${2:-}" '
     for (i = 1; i < nt; i++) {
       if (T[i] != "cd" && T[i] != "pushd") continue
       for (j = i + 1; j < nt && T[j] ~ /^-[LPe@]+$/; j++) ;
+      if (T[j] == "--") j++   # "--" ends the flags: the next word is the target (none = home, for cd)
       t = T[j]
       if (t == "\001") { if (T[i] == "cd") { cur = nrm(home); b[++nb] = cur } continue }
-      if (t == "-" || t == "--") continue
+      if (t == "-") continue
       x = absn(t, cur); y = absn(t, wd)
       if (x != "?") b[++nb] = x; if (y != "?") b[++nb] = y
       if (x == "?" && y == "?") unk = 1

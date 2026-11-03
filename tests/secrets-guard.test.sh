@@ -350,6 +350,13 @@ want deny  Bash '{"command":"cd && cat .netrc"}' "$H/proj"
 want deny  Bash '{"command":"cd; cat .netrc"}' "$H/proj"
 want deny  Bash '{"command":"cd -P ~/.config/app && cat secrets/a.key"}'
 want deny  Bash '{"command":"cd \"$HOME/.config/app\" && cat secrets/a.key"}'
+# "--" ends cd's flags: the next word is the target (chained, absolute, after a flag, pushd); a bare "cd --" goes home
+want deny  Bash '{"command":"cd ~/.config && cd -- app && cat secrets/a.key"}'
+want deny  Bash '{"command":"pushd -- app; cat secrets/a.key"}' "$H/.config"
+want deny  Bash '{"command":"cd -- ~/.config/app && cat secrets/a.key"}'
+want deny  Bash '{"command":"cd -L -- app && cat secrets/a.key"}' "$H/.config"
+want deny  Bash '{"command":"cd --; cat .netrc"}' "$H/proj"
+want allow Bash '{"command":"cd -- /tmp && ls"}'
 # a word that is itself a command is split again (bash -c, sh -c, "$( )")
 want deny  Bash '{"command":"bash -c '\''cat \"$HOME\"/.netrc'\''"}'
 want deny  Bash '{"command":"sh -c \"cd ~/.config && cat '\''app'\''/secrets/a.key\""}'
