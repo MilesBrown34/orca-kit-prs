@@ -22,12 +22,23 @@
 # eval, source, ., read, mapfile, readarray, xargs, exec. Any other command naming K is refused (its message
 # names the shapes); one in shape is then checked as any command, K blanked out (a listed path left in it,
 # e.g. `cd <listed folder> &&`, is refused). Anything else under never_read stays refused: the folder, a
-# sibling, a glob, a `..`, `.` or `//` spelling.
+# sibling, a glob, a `..`, `.` or `//` spelling (the allow match is on the exact spelling, so normalizing only
+# ever refuses more).
 # An allow entry that is a directory, a symlink, a pattern (* ? [) or not a plain absolute path is ignored.
-# It is a speed bump for an agent, not a sandbox: a path reached through a variable, a symlink or a script is
-# not seen, nor what the program does with K once it has it (a script or interpreter that derives the folder
-# from the NAME=K value, a file it writes that a later command runs). Deliberately no set -e: a hook must never break a
-# tool call. Dependencies: bash, git, grep, sed, awk, sort.
+# Paths are compared NORMALIZED, on both sides (the entries and the path a tool names), by text alone (no
+# filesystem access): `~`, `$HOME` and `${HOME}` expanded, `//` collapsed, `.` dropped, `..` resolved, a trailing
+# `/` dropped. A relative path is resolved against the call's working directory: the hook input's `cwd` (Read,
+# Grep and Bash calls carry it), else CLAUDE_PROJECT_DIR; when neither is known a relative path is refused. In a
+# Bash command every path-like word (holding a `/`, starting with `~` or `$HOME`, or `.`/`..`) is checked that way,
+# a relative one also against each `cd`/`pushd` target in the same command; the call's own `cwd` is one of the
+# words, so a command run inside a listed path is refused too.
+# It is a speed bump for an agent, not a sandbox: a path reached through a variable, a glob in the folder part
+# (`secre*/`), a symlink (links are not followed) or a script is not seen, nor what the program does with K once
+# it has it (a script or interpreter that derives the folder from the NAME=K value, a file it writes that a later
+# command runs). Known gaps, by choice: pattern entries are not checked in Bash commands (only on the paths Read
+# and Grep name), and the Glob tool is not registered, so the file NAMES in a listed folder can be listed (never
+# their contents). Deliberately no set -e: a hook must never break a tool call.
+# Dependencies: bash, git, grep, sed, awk, sort.
 #
 # Test mode: SECRETS_GUARD_CONF=<file> and SECRETS_GUARD_HOME=<dir> skip the repo lookup and use that list.
 
@@ -63,29 +74,84 @@ block() { awk -v key="$1" '
 entries="$(block never_read)"
 [ -n "$entries" ] || exit 0
 
-expand() {  # ~ and $HOME -> the home directory; trailing / dropped
+# Where a relative path starts: the call's own cwd, else CLAUDE_PROJECT_DIR; "" = unknown (relative is refused).
+wd="$(json_str cwd)"; [ -n "$wd" ] || wd="${CLAUDE_PROJECT_DIR:-}"
+
+# norm path: each stdin line is a path -> its normalized absolute form ("?" = relative, no working directory).
+# norm cmd:  stdin is a Bash call's text -> the first word that lands in a listed (non-pattern) entry, normalized,
+#            else "?" when a relative path-like word has no working directory to start from, else nothing.
+norm() { awk -v mode="$1" -v home="$home" -v wd="$wd" -v ents="${2:-}" '
+  function nrm(p,   n, s, i, k, out, st) {
+    n = split(p, s, "/"); k = 0
+    for (i = 1; i <= n; i++) {
+      if (s[i] == "" || s[i] == ".") continue
+      if (s[i] == "..") { if (k > 0) k--; continue }
+      st[++k] = s[i]
+    }
+    out = ""; for (i = 1; i <= k; i++) out = out "/" st[i]
+    return out == "" ? "/" : out
+  }
+  function xp(t) {
+    if (t == "~" || t == "$HOME" || t == "${HOME}") return home
+    if (substr(t, 1, 2) == "~/") return home substr(t, 2)
+    if (substr(t, 1, 6) == "$HOME/") return home substr(t, 6)
+    if (substr(t, 1, 8) == "${HOME}/") return home substr(t, 8)
+    return t
+  }
+  function absn(t, base) { t = xp(t); if (substr(t, 1, 1) == "/") return nrm(t); if (base == "") return "?"; return nrm(base "/" t) }
+  function inside(p,   k) { for (k = 1; k <= ne; k++) if (E[k] != "" && (p == E[k] || index(p, E[k] "/") == 1)) return 1; return 0 }
+  function check(p) { if (inside(p)) { print p; done = 1; exit } }
+  mode == "path" { print absn($0, wd); next }
+  mode == "ents" { if (index($0, "*")) print $0 "\t" $0; else { r = absn($0, ""); if (r != "?") print r "\t" $0 }; next }
+  { buf = buf $0 "\n" }
+  END {
+    if (mode != "cmd" || done) exit
+    ne = split(ents, E, "\n")
+    gsub(/\\[nt]/, " ", buf)
+    n = split(buf, w, /[[:space:];|&()<>`\047"=@:,]+/)
+    nb = 0; if (wd != "") b[++nb] = absn(wd, "")
+    for (i = 1; i < n; i++)
+      if ((w[i] == "cd" || w[i] == "pushd") && w[i + 1] != "" && substr(w[i + 1], 1, 1) != "-") {
+        x = absn(w[i + 1], wd); if (x == "?") unk = 1; else b[++nb] = x
+      }
+    for (i = 1; i <= n; i++) {
+      t = w[i]
+      if (t == "" || substr(t, 1, 1) == "-") continue
+      # a path-like word; a bare word (no /) counts only as a name inside the working directory or a cd target
+      bare = !(index(t, "/") || t == "." || t == ".." || substr(t, 1, 1) == "~" || t ~ /^\$\{?HOME/)
+      t = xp(t)
+      if (substr(t, 1, 1) == "/") { check(nrm(t)); continue }
+      if (nb == 0) { if (!bare) unk = 1; continue }
+      for (j = 1; j <= nb; j++) check(nrm(b[j] "/" t))
+    }
+    if (unk) print "?"
+  }'; }
+
+# The entries normalized once ("<normalized>\t<as written>"); a pattern stays as written, a relative entry is dropped.
+nentries="$(printf '%s\n' "$entries" | norm ents)"
+
+expand() {  # ~ and $HOME -> the home directory; trailing / dropped (the as-written spellings of the text check)
   local p="$1"
   case "$p" in "~") p="$home" ;; "~/"*) p="$home/${p#\~/}" ;; '$HOME') p="$home" ;; '$HOME/'*) p="$home/${p#\$HOME/}" ;; esac
   printf '%s' "${p%/}"
 }
 hit=""
-guarded() {  # <absolute path>: is it inside, equal to, or (for a sweep) above a listed entry?
-  local p="$1" e x sweep="${2:-0}"
-  while IFS= read -r e; do
-    [ -n "$e" ] || continue
-    x="$(expand "$e")"
+guarded() {  # <normalized absolute path> [sweep] [no patterns]: inside, equal to, or (sweep) above a listed entry?
+  local p="$1" sweep="${2:-0}" nopat="${3:-0}" x e
+  while IFS=$'\t' read -r x e; do
+    [ -n "$x" ] || continue
     case "$x" in
-      *\**) case "$p" in $x) hit="$e"; return 0 ;; esac ;;
+      *\**) [ "$nopat" = 1 ] && continue; case "$p" in $x) hit="$e"; return 0 ;; esac ;;
       *) case "$p" in "$x"|"$x"/*) hit="$e"; return 0 ;; esac
-         [ "$sweep" = 1 ] && case "$x" in "$p"/*) hit="$e"; return 0 ;; esac ;;
+         [ "$sweep" = 1 ] && { [ "$p" = / ] || case "$x" in "$p"/*) true ;; *) false ;; esac; } && { hit="$e"; return 0; } ;;
     esac
-  done <<<"$entries"
+  done <<<"$nentries"
   return 1
 }
-absolute() {  # relative -> against the session cwd; symlinks are not followed (a speed bump)
-  local p="$1" c
+absolute() {  # as written, for the exact allow_read match: relative -> against the working directory (if known)
+  local p="$1"
   case "$p" in "~"|"~/"*|'$HOME'|'$HOME/'*) p="$(expand "$p")" ;; esac
-  if [ "${p#/}" = "$p" ]; then c="$(json_str cwd)"; [ -n "$c" ] || c="${CLAUDE_PROJECT_DIR:-$PWD}"; p="$c/$p"; fi
+  if [ "${p#/}" = "$p" ] && [ -n "$wd" ]; then p="$wd/$p"; fi
   printf '%s' "$p"
 }
 
@@ -163,19 +229,24 @@ allow_bash() {
   body="${c//$k/<allowed file>}$nl$rest"
 }
 
-what=""
+nowd="a relative path, and the hook knows no working directory to resolve it against"
+what=""; why="That path is listed under never_read in docs/orchestration/ORCHESTRATION.md: sessions never read key stores."
 case "$tool" in
   Read)
     path="$(json_str file_path)"; [ -n "$path" ] || exit 0
     is_allowed "$(absolute "$path")" && exit 0
-    guarded "$(absolute "$path")" && what="reading $path" ;;
+    np="$(printf '%s\n' "$path" | norm path)"
+    if [ "$np" = "?" ]; then what="reading $path ($nowd)"; else guarded "$np" && what="reading $path"; fi ;;
   Grep)
     path="$(json_str path)"; [ -n "$path" ] || path="."
     is_allowed "$(absolute "$path")" && exit 0
-    guarded "$(absolute "$path")" 1 && what="searching $path" ;;
+    np="$(printf '%s\n' "$path" | norm path)"
+    if [ "$np" = "?" ]; then what="searching $path ($nowd)"; else guarded "$np" 1 && what="searching $path"; fi ;;
   Bash)
     body="$(printf '%s' "$input" | sed 's#\\/#/#g')"
+    # 0. an allowed file passes only in the allowed shapes, then is blanked out of the text (allow_bash)
     [ -n "$allowed" ] && allow_bash
+    # 1. the text as written names a listed path (in any of its spellings)
     [ -z "$what" ] && while IFS= read -r e; do
       [ -n "$e" ] || continue
       x="$(expand "$e")"; case "$x" in *\**) continue ;; esac   # patterns are checked on real paths only
@@ -183,11 +254,20 @@ case "$tool" in
         case "$form" in "~/$x"|"\$HOME/$x") continue ;; esac     # x was not under home: skip the made-up forms
         case "$body" in *"$form"*) hit="$e"; what="a command naming $form"; break 2 ;; esac
       done
-    done <<<"$entries" ;;
+    done <<<"$entries"
+    # 2. a word of the command, normalized (relative ones against the working directory and each cd target),
+    #    lies in a listed path; patterns are not checked here (a known gap, see the header)
+    if [ -z "$what" ]; then
+      ents=""; while IFS=$'\t' read -r x e; do case "$x" in ""|*\**) ;; *) ents="$ents$x"$'\n' ;; esac; done <<<"$nentries"
+      np="$(printf '%s' "$body" | norm cmd "$ents" | head -n1)"
+      if [ "$np" = "?" ]; then what="a command with $nowd"
+      elif [ -n "$np" ]; then guarded "$np" 0 1; what="a command reaching $np"; fi
+    fi ;;
 esac
 [ -n "$what" ] || exit 0
+case "$what" in *"$nowd"*) why="With a never_read list in force, a path the hook cannot place is refused rather than passed." ;; esac
 
-reason="Blocked by orchestration-kit secrets guard: $what. That path is listed under never_read in docs/orchestration/ORCHESTRATION.md: sessions never read key stores. If the work needs a key, stop and ask the human (through the seat under a banner); it is theirs to supply. The human can remove the entry, or let one file through by its exact path under allow_read."
+reason="Blocked by orchestration-kit secrets guard: $what. $why If the work needs a key, stop and ask the human (through the seat under a banner); it is theirs to supply. The human can remove the entry, or let one file through by its exact path under allow_read."
 reason="$(printf '%s' "$reason" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
 printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "$reason"
 exit 0

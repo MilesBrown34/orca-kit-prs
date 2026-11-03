@@ -234,6 +234,78 @@ want deny  Read '{"file_path":"'"$H"'/proj/cert.pem"}'
 want allow Read '{"file_path":"'"$H"'/proj/src/a.ts"}'
 # the header keeps its symlink note (a path reached through a symlink is not seen)
 grep -q 'symlink' <(sed -n '1,30p' "$HOOK") && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL header lost its symlink note"; }
+# --- normalized paths: a listed path stays refused however it is spelled (//, ., .., ${HOME}, relative, cd)
+A="$H/.config/app"; mkdir -p "$A/secrets" "$H/.config/other/keys" "$H/.config/app/secrets-old"; echo k > "$A/secrets/a.key"
+CONF3="$TMP/ORCH3.md"
+cat > "$CONF3" <<EOC
+never_read:
+  - ~/.config/app/secrets/
+  - ~/.config/other//keys/      # an entry spelled with // is normalized too
+  - *.pem
+EOC
+export SECRETS_GUARD_CONF="$CONF3" SECRETS_GUARD_HOME="$H"
+for p in "$A//secrets/a.key" "$A/./secrets/a.key" "$H/.config/x/../app/secrets/a.key" '${HOME}/.config/app/secrets/a.key' \
+         "../.config/app/secrets/a.key" "$H/proj/cert.pem/." "$H/.config/other/keys/k" "$A/secrets/a.key/"; do
+  want deny Read '{"file_path":"'"$p"'"}'
+done
+for p in "$A//secrets" "$A/./secrets" "$H/.config/x/../app/secrets" '${HOME}/.config/app/secrets' "../.config" "$A/x/.." \
+         "$H/proj/cert.pem/." "$H/.config/other"; do
+  want deny Grep '{"pattern":"K","path":"'"$p"'"}'
+done
+for c in "cat ~/.config/app//secrets/a.key" "cat ~/.config/app/./secrets/a.key" "cat ~/.config/x/../app/secrets/a.key" \
+         'cat ${HOME}/.config/app/secrets/a.key' "cat ../.config/app/secrets/a.key" "cd ~/.config/app && cat secrets/a.key" \
+         "pushd ~/.config/app; cat ./secrets//a.key" "cd ../.config/app; ls secrets" "cat ~/.config/other/keys/k" \
+         "KEY=\$(cat ~/.config/app//secrets/a.key)" "curl -H @~/.config/app/./secrets/a.key x" "cp ~/.config/app/secrets/../secrets/a.key /tmp/k"; do
+  want deny Bash '{"command":"'"$c"'"}'
+done
+# the cwd inside a store, spelled plainly or not: every relative path and every Bash call refused
+want deny  Read '{"file_path":"a.key"}' "$A/secrets"
+want deny  Grep '{"pattern":"K"}' "$A/secrets"
+want deny  Bash '{"command":"cat a.key"}' "$A/secrets"
+want deny  Bash '{"command":"ls"}' "$A//secrets"
+want deny  Read '{"file_path":"a.key"}' "$A/x/../secrets"
+# held before, still held
+want deny  Read '{"file_path":"'"$A"'/secrets//a.key"}'
+want deny  Read '{"file_path":"'"$A"'/secrets/./a.key"}'
+want deny  Read '{"file_path":"'"$A"'/secrets/"}'
+want deny  Read '{"file_path":"$HOME/.config/app/secrets/a.key"}'
+want deny  Bash '{"command":"gpg -d $HOME/.config/app/secrets/a.key"}'
+want deny  Read '{"file_path":"'"$H"'/proj/cert.pem"}'
+# unrelated paths, odd spellings included, still pass
+want allow Read '{"file_path":"'"$H"'/proj/src/a.ts"}'
+want allow Read '{"file_path":"src/../src/./a.ts"}'
+want allow Read '{"file_path":"'"$A"'/secrets-old/x"}'
+want allow Grep '{"pattern":"K","path":"'"$H"'/proj"}'
+want allow Grep '{"pattern":"K","path":"'"$A"'/secrets-old"}'
+want allow Bash '{"command":"cat src/a.ts && ls ~/.config && cd ~/.config/app && ls"}'
+want allow Bash '{"command":"cat ../proj//src/./a.ts; echo a/b//c ./d ../e"}'
+want allow Bash '{"command":"cd ~/.config/app && cat secrets-old/x"}'
+want allow Bash '{"command":"git -C ~/.config/app log --oneline -1"}'
+# no working directory known (no cwd in the call, no CLAUDE_PROJECT_DIR): a relative path is refused, an absolute one is not
+callraw() { printf '{"tool_name":"%s","tool_input":%s}' "$1" "$2" | env -u CLAUDE_PROJECT_DIR bash "$HOOK"; }
+wantraw() { local got; case "$(callraw "$2" "$3")" in *'"permissionDecision":"deny"'*) got=deny ;; *) got=allow ;; esac
+  if [ "$got" = "$1" ]; then pass=$((pass+1)); else fail=$((fail+1)); echo "FAIL want $1 got $got (no cwd): $2 $3"; fi; }
+wantraw deny  Read '{"file_path":"src/a.ts"}'
+wantraw deny  Bash '{"command":"cat src/a.ts"}'
+wantraw allow Read '{"file_path":"'"$H"'/proj/src/a.ts"}'
+wantraw allow Bash '{"command":"ls /tmp"}'
+# the header (its leading comment block) names the known gaps
+hdr() { sed -n '1,/^[^#]/p' "$HOOK"; }
+grep -q 'Glob' <(hdr) && grep -q 'pattern entries' <(hdr) && pass=$((pass+1)) \
+  || { fail=$((fail+1)); echo "FAIL header does not name the known gaps (Glob, pattern entries in Bash)"; }
+export SECRETS_GUARD_CONF="$CONF2"
+# with an allow list: a command in an allowed shape is still checked on normalized words (the text check alone misses these)
+K='~/.config/msm/secrets/service-api-key'
+want allow Bash '{"command":"GLS_KEY_FILE='"$K"' bash tools/glstest/run.sh --dry"}'
+want deny  Bash '{"command":"cd ~/.config/msm/x/../secrets && GLS_KEY_FILE='"$K"' bash run.sh"}'
+want deny  Bash '{"command":"GLS_KEY_FILE='"$K"' bash ~/.config/msm//secrets/run.sh"}'
+want deny  Bash '{"command":"GLS_KEY_FILE='"$K"' bash ../.config/msm/secrets/run.sh"}'
+want deny  Bash '{"command":"GLS_KEY_FILE='"$K"' bash run.sh"}' "$H/.config/msm//secrets"
+want deny  Bash '{"command":"GLS_KEY_FILE=~/.config/msm//secrets/service-api-key bash run.sh"}'
+want deny  Bash '{"command":"cat ~/.config/msm/./secrets/service-api-key | wc -c"}'
+want deny  Read '{"file_path":"~/.config/msm//secrets/service-api-key"}'
+wantraw allow Bash '{"command":"GLS_KEY_FILE='"$K"' bash /tmp/run.sh"}'
+wantraw deny  Bash '{"command":"GLS_KEY_FILE='"$K"' bash tools/glstest/run.sh"}'
 # an allow_read list with no never_read list: no guard at all, as before
 printf '## Secrets\n\nallow_read:\n  - ~/.config/msm/secrets/service-api-key\n' > "$TMP/allowonly.md"
 SECRETS_GUARD_CONF="$TMP/allowonly.md" want allow Read '{"file_path":"'"$S"'/api.key"}'
