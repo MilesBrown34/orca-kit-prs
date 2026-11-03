@@ -309,5 +309,57 @@ wantraw deny  Bash '{"command":"GLS_KEY_FILE='"$K"' bash tools/glstest/run.sh"}'
 # an allow_read list with no never_read list: no guard at all, as before
 printf '## Secrets\n\nallow_read:\n  - ~/.config/msm/secrets/service-api-key\n' > "$TMP/allowonly.md"
 SECRETS_GUARD_CONF="$TMP/allowonly.md" want allow Read '{"file_path":"'"$S"'/api.key"}'
+# --- Bash words as bash reads them (506 fix round 1): quotes removed and the pieces of one word joined, \x = x,
+#     chained relative cd, bare cd = home, cd flags skipped
+CONF4="$TMP/ORCH4.md"
+cat > "$CONF4" <<EOC
+never_read:
+  - ~/.netrc
+  - ~/.config/app/secrets/
+EOC
+export SECRETS_GUARD_CONF="$CONF4" SECRETS_GUARD_HOME="$H"
+echo n > "$H/.netrc"
+# F1: a double- or single-quoted path is normalized like a plain one
+want deny  Bash '{"command":"cat \"'"$H"'/x/../.netrc\""}'
+want deny  Bash '{"command":"cat \"$HOME/./.netrc\""}'
+want deny  Bash '{"command":"cat \".netrc\""}' "$H"
+want deny  Bash '{"command":"cat \"../.netrc\""}' "$H/proj"
+want deny  Bash '{"command":"tar -czf /tmp/x.tgz \"secrets\""}' "$A"
+want deny  Bash '{"command":"cat \"'"$A"'//secrets/a.key\""}'
+want deny  Bash '{"command":"cat '\''.netrc'\''"}' "$H"
+want deny  Bash '{"command":"cat '\''../.config/app/./secrets/a.key'\''"}' "$H/proj"
+# F2: one word built from quoted and plain pieces is joined before it is normalized
+want deny  Bash '{"command":"cat \"$HOME\"/.netrc"}'
+want deny  Bash '{"command":"cat \"${HOME}\"/.netrc"}'
+want deny  Bash '{"command":"cat ~/\".netrc\""}'
+want deny  Bash '{"command":"cat ~/.config/app/'\''secrets'\''/a.key"}'
+want deny  Bash '{"command":"cat ~/.config/app/\"secrets\"/a.key"}'
+want deny  Bash '{"command":"cat ~/.config/app/se\"cre\"ts/a.key"}'
+want deny  Bash '{"command":"cat $HOME/.config/app/'\''sec'\''\"rets\"//a.key"}'
+want deny  Bash '{"command":"ls \"$HOME/.config/app\"/secrets"}'
+want deny  Bash '{"command":"KEY=\"$HOME\"/.netrc prog"}'
+want deny  Bash '{"command":"prog --file=\"$HOME\"/.netrc"}'
+want deny  Bash '{"command":"cat \"$HOME\"$'\''/.netrc'\''"}'
+want deny  Bash '{"command":"cat ~/.ne\\trc"}'
+want deny  Bash '{"command":"cat ~/.config/app/secrets\\/a.key"}'
+# F3: cd targets chained (each against the one before), a bare cd goes home, cd flags skipped
+want deny  Bash '{"command":"cd .config && cd app && cat secrets/a.key"}' "$H"
+want deny  Bash '{"command":"cd ~/.config; cd app; ls secrets"}'
+want deny  Bash '{"command":"cd && cat .netrc"}' "$H/proj"
+want deny  Bash '{"command":"cd; cat .netrc"}' "$H/proj"
+want deny  Bash '{"command":"cd -P ~/.config/app && cat secrets/a.key"}'
+want deny  Bash '{"command":"cd \"$HOME/.config/app\" && cat secrets/a.key"}'
+# a word that is itself a command is split again (bash -c, sh -c, "$( )")
+want deny  Bash '{"command":"bash -c '\''cat \"$HOME\"/.netrc'\''"}'
+want deny  Bash '{"command":"sh -c \"cd ~/.config && cat '\''app'\''/secrets/a.key\""}'
+want deny  Bash '{"command":"echo \"$(cat \"$HOME\"/.netrc)\""}'
+want allow Bash '{"command":"bash -c '\''echo \"hi there\"'\''"}'
+# unrelated commands with quotes and cd still pass
+want allow Bash '{"command":"cat \"src/a.ts\" '\''src/a.ts'\''"}'
+want allow Bash '{"command":"echo \"hello world\" | grep -c o"}'
+want allow Bash '{"command":"cd .config && cd app && cat secrets-old/x"}' "$H"
+want allow Bash '{"command":"cd && ls proj"}' "$H/proj"
+want allow Bash '{"command":"git commit -m \"fix: the .netrc docs, see ~/.config/app/README\""}'
+want allow Bash '{"command":"printf '\''%s\\n'\'' \"a b\" > /tmp/o.txt"}'
 echo "secrets-guard: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

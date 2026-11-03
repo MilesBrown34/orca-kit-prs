@@ -31,13 +31,22 @@
 # Grep and Bash calls carry it), else CLAUDE_PROJECT_DIR; when neither is known a relative path is refused. In a
 # Bash command every path-like word (holding a `/`, starting with `~` or `$HOME`, or `.`/`..`) is checked that way,
 # a relative one also against each `cd`/`pushd` target in the same command; the call's own `cwd` is one of the
-# words, so a command run inside a listed path is refused too.
+# words, so a command run inside a listed path is refused too. The command's words are read twice: split at
+# quotes and operators as before, and as bash splits them (JSON escapes decoded, quotes removed and the quoted and
+# plain pieces of one word joined: "$HOME"/.netrc, ~/'a'/b; \x outside quotes = x; $'..' and $".." read as '..'
+# and ".."; a word that is itself a command, as in bash -c '..', sh -c "..", "$(..)", is split again, three
+# levels deep; each word is checked whole and in its pieces around = @ : ,). cd targets chain: a relative one is
+# resolved against the cd before it as well as the working directory (cd a && cd b = a/b); a bare `cd` goes home;
+# -L/-P/-e/-@ flags are skipped. `~` inside quotes is taken as home too (bash would not expand it: refuses more).
 # It is a speed bump for an agent, not a sandbox: a path reached through a variable, a glob in the folder part
-# (`secre*/`), a symlink (links are not followed) or a script is not seen, nor what the program does with K once
-# it has it (a script or interpreter that derives the folder from the NAME=K value, a file it writes that a later
-# command runs). Known gaps, by choice: pattern entries are not checked in Bash commands (only on the paths Read
-# and Grep name), and the Glob tool is not registered, so the file NAMES in a listed folder can be listed (never
-# their contents). Deliberately no set -e: a hook must never break a tool call.
+# (`secre*/`) or in the file-name part of a file entry (`~/.net*`), brace expansion (`~/.{netrc,x}`), `~user`,
+# escapes inside $'..' (\x2f), a directory flag other than cd/pushd (`tar -C`, `git -C`, `env -C`, `make -C`),
+# `cd -`, a command nested deeper than three levels, a symlink (links are not followed) or a script is not seen,
+# nor what the program does with K once it has it (a script or interpreter that derives the folder from the
+# NAME=K value, a file it writes that a later command runs). Known gaps, by choice: pattern entries are not
+# checked in Bash commands (only on the paths Read and Grep name), and the Glob tool is not registered, so the
+# file NAMES in a listed folder can be listed (never their contents). Deliberately no set -e: a hook must never
+# break a tool call.
 # Dependencies: bash, git, grep, sed, awk, sort.
 #
 # Test mode: SECRETS_GUARD_CONF=<file> and SECRETS_GUARD_HOME=<dir> skip the repo lookup and use that list.
@@ -103,26 +112,71 @@ norm() { awk -v mode="$1" -v home="$home" -v wd="$wd" -v ents="${2:-}" '
   function check(p) { if (inside(p)) { print p; done = 1; exit } }
   mode == "path" { print absn($0, wd); next }
   mode == "ents" { if (index($0, "*")) print $0 "\t" $0; else { r = absn($0, ""); if (r != "?") print r "\t" $0 }; next }
+  # tok: appends the command as bash splits it into words to T[1..nt] ("\001" marks an operator or the end): quotes removed
+  # and the quoted and plain pieces of one word joined, \x = x outside quotes, $'..' and $".." read as '..' and "..".
+  function tok(s,   i, n, c, q, cur, inw, nx) {
+    n = length(s); q = ""; cur = ""; inw = 0
+    for (i = 1; i <= n; i++) {
+      c = substr(s, i, 1)
+      if (q == "\047") { if (c == "\047") q = ""; else cur = cur c; continue }
+      if (q == "\"") {
+        if (c == "\"") { q = ""; continue }
+        if (c == "\\") { nx = substr(s, i + 1, 1); if (nx ~ /[$`"\\]/) { cur = cur nx; i++; continue } if (nx == "\n") { i++; continue } }
+        cur = cur c; continue
+      }
+      if (c == "$" && substr(s, i + 1, 1) ~ /[\047"]/) continue
+      if (c == "\047" || c == "\"") { q = c; inw = 1; continue }
+      if (c == "\\") { nx = substr(s, ++i, 1); if (nx != "\n" && nx != "") { cur = cur nx; inw = 1 } continue }
+      if (c ~ /[ \t\r\n]/) { if (inw) T[++nt] = cur; cur = ""; inw = 0; continue }
+      if (c ~ /[;|&()<>`]/) { if (inw) T[++nt] = cur; cur = ""; inw = 0; T[++nt] = "\001"; continue }
+      cur = cur c; inw = 1
+    }
+    if (inw) T[++nt] = cur
+    T[++nt] = "\001"
+  }
+  function cw(t,   bare, j) {  # one word: a path-like word, or a bare word (no /) as a name inside a working directory
+    if (t == "" || substr(t, 1, 1) == "-") return
+    bare = !(index(t, "/") || t == "." || t == ".." || substr(t, 1, 1) == "~" || t ~ /^\$\{?HOME/)
+    t = xp(t)
+    if (substr(t, 1, 1) == "/") { check(nrm(t)); return }
+    if (nb == 0) { if (!bare) unk = 1; return }
+    for (j = 1; j <= nb; j++) check(nrm(b[j] "/" t))
+  }
   { buf = buf $0 "\n" }
   END {
     if (mode != "cmd" || done) exit
     ne = split(ents, E, "\n")
-    gsub(/\\[nt]/, " ", buf)
-    n = split(buf, w, /[[:space:];|&()<>`\047"=@:,]+/)
+    # the command (decoded) and the rest of the call (raw JSON: its \n and \t escapes read as spaces)
+    k = index(buf, "\002"); if (k) { cmd = substr(buf, 1, k - 1); rest = substr(buf, k + 1) } else { cmd = buf; rest = "" }
+    gsub(/\\[nt]/, " ", rest)
+    n = split(cmd " " rest, w, /[[:space:];|&()<>`\047"=@:,]+/)
+    # a word that is itself a command (bash -c '..', "$(..)", ssh h ".."): split again, three levels deep
+    nt = 0; tok(cmd); s0 = 1
+    for (lv = 1; lv <= 3; lv++) { e0 = nt; for (i = s0; i <= e0; i++) if (T[i] != "\001" && T[i] ~ /[ \t\r\n\047"\\;|&()<>`]/) tok(T[i]); s0 = e0 + 1 }
     nb = 0; if (wd != "") b[++nb] = absn(wd, "")
     for (i = 1; i < n; i++)
       if ((w[i] == "cd" || w[i] == "pushd") && w[i + 1] != "" && substr(w[i + 1], 1, 1) != "-") {
         x = absn(w[i + 1], wd); if (x == "?") unk = 1; else b[++nb] = x
       }
-    for (i = 1; i <= n; i++) {
-      t = w[i]
-      if (t == "" || substr(t, 1, 1) == "-") continue
-      # a path-like word; a bare word (no /) counts only as a name inside the working directory or a cd target
-      bare = !(index(t, "/") || t == "." || t == ".." || substr(t, 1, 1) == "~" || t ~ /^\$\{?HOME/)
-      t = xp(t)
-      if (substr(t, 1, 1) == "/") { check(nrm(t)); continue }
-      if (nb == 0) { if (!bare) unk = 1; continue }
-      for (j = 1; j <= nb; j++) check(nrm(b[j] "/" t))
+    # cd/pushd on the bash words: flags skipped, a bare cd goes home, a relative target resolved against the
+    # previous target too (cd a && cd b = a/b), as well as against the working directory
+    cur = (wd != "") ? absn(wd, "") : ""
+    for (i = 1; i < nt; i++) {
+      if (T[i] != "cd" && T[i] != "pushd") continue
+      for (j = i + 1; j < nt && T[j] ~ /^-[LPe@]+$/; j++) ;
+      t = T[j]
+      if (t == "\001") { if (T[i] == "cd") { cur = nrm(home); b[++nb] = cur } continue }
+      if (t == "-" || t == "--") continue
+      x = absn(t, cur); y = absn(t, wd)
+      if (x != "?") b[++nb] = x; if (y != "?") b[++nb] = y
+      if (x == "?" && y == "?") unk = 1
+      cur = (x != "?") ? x : y; if (cur == "?") cur = ""
+    }
+    for (i = 1; i <= n; i++) cw(w[i])
+    # each bash word whole, and its pieces around = @ : , (NAME=path, --file=path, user@host:path)
+    for (i = 1; i <= nt; i++) {
+      if (T[i] == "\001") continue
+      cw(T[i]); m = split(T[i], pc, /[=@:,]+/); if (m > 1) for (j = 1; j <= m; j++) cw(pc[j])
     }
     if (unk) print "?"
   }'; }
@@ -207,7 +261,7 @@ allow_bash() {
     c="${c//"$form"/$k}"; rest="${rest//"$form"/<allowed file>}"
   done <<<"$list"
   re="\"$k\""; c="${c//"$re"/$k}"; re="'$k'"; c="${c//"$re"/$k}"   # "K" and 'K' are K
-  case "$c" in *"$k"*) ;; *) body="$cmd$nl$rest"; return 0 ;; esac
+  case "$c" in *"$k"*) ;; *) bcmd="$cmd"; brest="$rest"; return 0 ;; esac
   # The shapes. W: a plain word (no $, quote, backslash, glob, brace, paren or the allowed file).
   W='[A-Za-z0-9_./:%+,=@~-]+'
   A='[A-Za-z_][A-Za-z0-9_]*=('"$W"')?'; AK='[A-Za-z_][A-Za-z0-9_]*='"$k"
@@ -220,13 +274,13 @@ allow_bash() {
   re="^[ 	]*(cd[ 	]+$W[ 	]*&&[ 	]*)?($S1|$S2|$S3)[ 	]*\$"
   F='(^|[ 	;&|])(find|eval|source|[.]|declare|typeset|local|readonly|set|for|select|case|function|alias|mapfile|readarray|read|xargs|exec|\[\[)([ 	;&|]|$)'
   if [[ ! $c =~ $re ]] || [[ $c =~ $F ]]; then
-    [ -n "$hitx" ] || { body="$cmd$nl$rest"; return 0; }
+    [ -n "$hitx" ] || { bcmd="$cmd"; brest="$rest"; return 0; }
     what="a command naming the allowed file $hitx outside the allowed shapes: NAME=<file> before one program"
     what="$what (env, timeout N, a leading cd <dir> && and a pipe into wc, head or tail are fine), export NAME=<file>;"
     what="$what <program>, or cat <file> | wc -c; no other \$, backtick, find, [[, for, set, declare, eval or source"
     return 0
   fi
-  body="${c//$k/<allowed file>}$nl$rest"
+  bcmd="${c//$k/<allowed file>}"; brest="$rest"
 }
 
 nowd="a relative path, and the hook knows no working directory to resolve it against"
@@ -243,9 +297,11 @@ case "$tool" in
     np="$(printf '%s\n' "$path" | norm path)"
     if [ "$np" = "?" ]; then what="searching $path ($nowd)"; else guarded "$np" 1 && what="searching $path"; fi ;;
   Bash)
-    body="$(printf '%s' "$input" | sed 's#\\/#/#g')"
+    # the command with its JSON escapes decoded (\" -> "), and the rest of the call (cwd, description ...) as sent
+    bcmd="$(json_cmd cmd)"; brest="$(json_cmd rest | sed 's#\\/#/#g')"
     # 0. an allowed file passes only in the allowed shapes, then is blanked out of the text (allow_bash)
     [ -n "$allowed" ] && allow_bash
+    body="$bcmd"$'\n'"$brest"
     # 1. the text as written names a listed path (in any of its spellings)
     [ -z "$what" ] && while IFS= read -r e; do
       [ -n "$e" ] || continue
@@ -259,7 +315,7 @@ case "$tool" in
     #    lies in a listed path; patterns are not checked here (a known gap, see the header)
     if [ -z "$what" ]; then
       ents=""; while IFS=$'\t' read -r x e; do case "$x" in ""|*\**) ;; *) ents="$ents$x"$'\n' ;; esac; done <<<"$nentries"
-      np="$(printf '%s' "$body" | norm cmd "$ents" | head -n1)"
+      np="$(printf '%s\002%s' "$bcmd" "$brest" | norm cmd "$ents" | head -n1)"
       if [ "$np" = "?" ]; then what="a command with $nowd"
       elif [ -n "$np" ]; then guarded "$np" 0 1; what="a command reaching $np"; fi
     fi ;;
