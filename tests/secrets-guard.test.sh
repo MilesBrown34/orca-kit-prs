@@ -341,7 +341,8 @@ want deny  Bash '{"command":"KEY=\"$HOME\"/.netrc prog"}'
 want deny  Bash '{"command":"prog --file=\"$HOME\"/.netrc"}'
 want deny  Bash '{"command":"cat \"$HOME\"$'\''/.netrc'\''"}'
 want deny  Bash '{"command":"cat ~/.ne\\trc"}'
-want deny  Bash '{"command":"cat ~/.config/app/secrets\\/a.key"}'
+want deny  Bash '{"command":"cat ~/.config/app/secrets\\/a.key"}'   # held by the text check alone
+want deny  Bash '{"command":"cat ~/.config/app/secr\\ets/a.key"}'   # only the bash-word pass sees it
 # F3: cd targets chained (each against the one before), a bare cd goes home, cd flags skipped
 want deny  Bash '{"command":"cd .config && cd app && cat secrets/a.key"}' "$H"
 want deny  Bash '{"command":"cd ~/.config; cd app; ls secrets"}'
