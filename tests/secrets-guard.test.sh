@@ -123,6 +123,10 @@ want deny  Bash '{"command":"cd '"$S"' && cat '"$A"'"}'   # in shape, but the li
 want deny  Bash '{"command":"GLS_KEY_FILE='"$A"' bash run.sh ../*"}'
 want deny  Bash '{"command":"GLS_KEY_FILE='"$A"'.bak bash run.sh"}'
 want deny  Bash '{"command":"ls $(dirname '"$A"') && GLS_KEY_FILE='"$A"' bash run.sh"}'
+# the cd target is a plain word too (never $( ), "$( )" or backticks)
+want deny  Bash '{"command":"cd $(dirname '"$A"') && GLS_KEY_FILE='"$A"' head api.key"}'
+want deny  Bash '{"command":"cd \"$(dirname '"$A"')\" && GLS_KEY_FILE='"$A"' head api.key"}'
+want deny  Bash '{"command":"cd `dirname '"$A"'` && GLS_KEY_FILE='"$A"' head api.key"}'
 # named with more after it, inside $( ) / backticks / ${ }, or through a runner: refused
 want deny  Bash '{"command":"KEY=$(cat '"$AA"') python3 run.py"}'
 for k in "$A" "$AH" "$AA"; do
