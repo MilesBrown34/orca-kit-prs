@@ -12,17 +12,21 @@
 # Both are read from the MAIN checkout (first `git worktree list` entry), so linked worktrees follow it.
 # Optional `allow_read:` block (same format): one FILE by its exact path (`~` = home) is let through although a
 # never_read entry covers it, until the human removes the line: a Read of exactly that path, a Grep of that one
-# file, and a Bash command that names it as a plain word: a space, tab, newline, = or @ (or the start) before it,
-# a space, tab, newline, ; | & < > (or the end) after it, or the same around it in matching quotes ("K" or 'K').
-# So `cat K`, `KEY_FILE=K bash run.sh` and `curl -d @K` pass. Named any other way the command is refused: more
-# after it (K.bak, K'.bak', K''*, K/..), or a command that could turn its text into another path: $( ), backticks,
-# ${ }, <<, <( ), >( ), eval, xargs, dirname, basename, realpath, readlink, read, mapfile, an echo or printf of
-# it, a pipe into a shell or script interpreter, or a variable it is assigned to expanded later ($VAR).
-# Anything else under never_read stays refused: the folder, a sibling, a glob, a `..`, `.` or `//` spelling.
+# file, and a Bash command naming it (K below; "K" and 'K' count as K) in one of these shapes only:
+#   NAME=K [NAME2=v ...] <program> <args>          (env, timeout N before it are fine)
+#   export NAME=K; <program> <args>                 (or &&)
+#   cat K                                           (with | wc -c, | head -c N)
+# each optionally after `cd <dir> &&`, with redirections (2>&1, > file) and a last pipe into wc, head or tail.
+# Every other word is plain: no other $ of any kind, no quote, backslash, backtick, glob, brace or parenthesis,
+# no second K, and none of find, [[, for, select, case, set, declare, typeset, local, readonly, function, alias,
+# eval, source, ., read, mapfile, readarray, xargs, exec. Any other command naming K is refused (its message
+# names the shapes); one in shape is then checked as any command, K blanked out (a listed path left in it,
+# e.g. `cd <listed folder> &&`, is refused). Anything else under never_read stays refused: the folder, a
+# sibling, a glob, a `..`, `.` or `//` spelling.
 # An allow entry that is a directory, a symlink, a pattern (* ? [) or not a plain absolute path is ignored.
 # It is a speed bump for an agent, not a sandbox: a path reached through a variable, a symlink or a script is
-# not seen, nor what a program does with the allowed path it is given (a script that derives the folder from
-# it, a file the command writes and a later command runs). Deliberately no set -e: a hook must never break a
+# not seen, nor what the program does with K once it has it (a script or interpreter that derives the folder
+# from the NAME=K value, a file it writes that a later command runs). Deliberately no set -e: a hook must never break a
 # tool call. Dependencies: bash, git, grep, sed, awk, sort.
 #
 # Test mode: SECRETS_GUARD_CONF=<file> and SECRETS_GUARD_HOME=<dir> skip the repo lookup and use that list.
@@ -116,13 +120,11 @@ json_cmd() {  # <cmd|rest>: tool_input.command with its JSON escapes decoded (cm
     if (want == "cmd") printf "%s", out; else printf "%s", substr(s, 1, st - 1) substr(s, i + 1)
   }'
 }
-plain_before() { case "$1" in ""|" "|$'\t'|$'\n'|=|@) return 0 ;; esac; return 1; }
-plain_after() { case "$1" in ""|" "|$'\t'|$'\n'|";"|"|"|"&"|"<"|">") return 0 ;; esac; return 1; }
-# Bash with an allow list: an allowed file named as a plain word (see the header) is blanked out of the command
-# and the rest is checked as before; an allowed file under never_read named any other way refuses the command.
+# Bash with an allow list: a command that names an allowed file passes only in one of the shapes the header lists
+# (the file reaches one program as an environment value, or cat reads it whole); any other command naming an
+# allowed file under never_read is refused. A command in shape is then checked as before, the file blanked out.
 allow_bash() {
-  local cmd rest list len x form p r head b bb a aa q pre name seg w re bad marker=0 nl=$'\n'
-  local sep='[[:space:];|&(){}`"'"'"']'
+  local cmd rest list len x form c hitx="" re W A AK P R T F S1 S2 S3 nl=$'\n' k=$'\001'
   cmd="$(json_cmd cmd)"; rest="$(json_cmd rest | sed 's#\\/#/#g')"
   list="$(while IFS= read -r x; do
       [ -n "$x" ] || continue
@@ -130,50 +132,35 @@ allow_bash() {
         case "$form" in "~/$x"|"\$HOME/$x") continue ;; esac
         case "$cmd$nl$rest" in *"$form"*) printf '%s\t%s\t%s\n' "${#form}" "$x" "$form" ;; esac
       done
-    done <<<"$allowed" | sort -rn)"   # longest first: an allowed name that starts another is checked after it
+    done <<<"$allowed" | sort -rn)"   # longest first: an allowed name that starts another is replaced after it
   [ -n "$list" ] || return 0
-  # Anything that could turn the name's text into another path.
-  case "$cmd" in *'$('*|*'`'*|*'${'*|*'<<'*|*'<('*|*'>('*) marker=1 ;; esac
-  re="(^|$sep)(eval|xargs|dirname|basename|realpath|readlink|read|mapfile|readarray)(\$|$sep|[<>])"
-  [[ $cmd =~ $re ]] && marker=1
-  re='\|[[:space:]]*((sudo|env|command|exec|nohup)[[:space:]]+)*([a-z]*sh|python[0-9.]*|perl|ruby|node|php|source|\.)($|[[:space:];|&)])'
-  [[ $cmd =~ $re ]] && marker=1
+  c="$cmd"
   while IFS=$'\t' read -r len x form; do
     [ -n "$form" ] || continue
-    p=""; r="$cmd"
-    while case "$r" in *"$form"*) true ;; *) false ;; esac; do
-      head="${r%%"$form"*}"; r="${r#*"$form"}"; p="$p$head"
-      b="${p: -1}"; bb=""; [ "${#p}" -ge 2 ] && bb="${p: -2:1}"; a="${r:0:1}"; aa="${r:1:1}"
-      bad=1; q=""
-      if plain_before "$b" && plain_after "$a"; then bad=0; q="$b"; pre="${p%?}"
-      elif { [ "$b" = '"' ] || [ "$b" = "'" ]; } && [ "$a" = "$b" ] && plain_before "$bb" && plain_after "$aa"; then
-        bad=0; q="$bb"; pre="${p%??}"
-      fi
-      if [ "$bad" = 0 ] && [ "$q" = "=" ]; then   # NAME=<allowed>: $NAME must not be expanded in the command
-        pre="${pre%+}"
-        re='(^|[[:space:];|&(])([A-Za-z_][A-Za-z0-9_]*)$'
-        if [[ $pre =~ $re ]]; then
-          name="${BASH_REMATCH[2]}"; re='\$'"$name"'([^A-Za-z0-9_]|$)'
-          [[ $cmd =~ $re ]] && bad=1
-        fi
-      fi
-      seg="${p##*[;|&(\`\{$nl]}"; seg="${seg#"${seg%%[![:space:]]*}"}"   # its simple command: never echo / printf
-      re='^[A-Za-z_][A-Za-z0-9_]*[+]?=[^[:space:]]*[[:space:]]+(.*)$'
-      while [[ $seg =~ $re ]]; do seg="${BASH_REMATCH[1]}"; done
-      w="${seg%%[[:space:]]*}"
-      case "$w" in echo|printf|print) bad=1 ;; esac
-      [ "$marker" = 1 ] && bad=1
-      if [ "$bad" = 1 ]; then
-        guarded "$x" || { p="$p$form"; continue; }
-        what="a command using the allowed file $form other than as a plain word (name it alone: cat <file>, KEY_FILE=<file> tool, curl -d @<file>; never with more after it, inside \$( ), backticks or \${ }, or through echo, xargs, dirname, eval, read or a pipe into a shell)"
-        return 0
-      fi
-      p="$p<allowed file>"
-    done
-    cmd="$p$r"
-    rest="${rest//"$form"/<allowed file>}"
+    case "$c" in *"$form"*) guarded "$x" && hitx="$x" ;; esac
+    c="${c//"$form"/$k}"; rest="${rest//"$form"/<allowed file>}"
   done <<<"$list"
-  body="$cmd$nl$rest"
+  re="\"$k\""; c="${c//"$re"/$k}"; re="'$k'"; c="${c//"$re"/$k}"   # "K" and 'K' are K
+  case "$c" in *"$k"*) ;; *) body="$cmd$nl$rest"; return 0 ;; esac
+  # The shapes. W: a plain word (no $, quote, backslash, glob, brace, paren or the allowed file).
+  W='[A-Za-z0-9_./:%+,=@~-]+'
+  A='[A-Za-z_][A-Za-z0-9_]*=('"$W"')?'; AK='[A-Za-z_][A-Za-z0-9_]*='"$k"
+  P='((timeout[ 	]+[0-9]+[smhd]?|env)[ 	]+)*'
+  R='([ 	]*[0-9]?(>>?|<)(&[0-9]+|[ 	]*'"$W"'))*'
+  T='([ 	]*[|][ 	]*(wc|head|tail)([ 	]+'"$W"')*)?'
+  S1="$P(($A|$AK)[ 	]+)*$AK([ 	]+($A|$AK))*[ 	]+$P$W([ 	]+$W)*$R$T"     # NAME=K [NAME2=v ...] program args
+  S2="export[ 	]+$AK[ 	]*(;|&&)[ 	]*$P$W([ 	]+$W)*$R$T"                # export NAME=K; program args
+  S3="cat[ 	]+$k$R$T"                                                      # cat K [| wc -c]
+  re="^[ 	]*(cd[ 	]+$W[ 	]*&&[ 	]*)?($S1|$S2|$S3)[ 	]*\$"
+  F='(^|[ 	;&|])(find|eval|source|[.]|declare|typeset|local|readonly|set|for|select|case|function|alias|mapfile|readarray|read|xargs|exec|\[\[)([ 	;&|]|$)'
+  if [[ ! $c =~ $re ]] || [[ $c =~ $F ]]; then
+    [ -n "$hitx" ] || { body="$cmd$nl$rest"; return 0; }
+    what="a command naming the allowed file $hitx outside the allowed shapes: NAME=<file> before one program"
+    what="$what (env, timeout N, a leading cd <dir> && and a pipe into wc, head or tail are fine), export NAME=<file>;"
+    what="$what <program>, or cat <file> | wc -c; no other \$, backtick, find, [[, for, set, declare, eval or source"
+    return 0
+  fi
+  body="${c//$k/<allowed file>}$nl$rest"
 }
 
 what=""
