@@ -459,6 +459,13 @@ def prepare(bump, who):
         raise SystemExit("%s refused: a tag %s already exists on this repository (Artekka's?). Pick --minor or --major, or rename." % (who, tag))
     extras, _ = read_page()
     check_fields(extras)
+    marked = [e["id"] for e in extras if e.get("live only", "").lower().startswith("yes")
+              and git("rev-parse", "--verify", "-q", "extra/" + e["id"], check=False)]
+    on_prs = patch_ids_in("prs") if marked else set()   # by content: a refitted or amended copy still counts
+    held = [i for i in marked if any(patch_id(c) in on_prs for c in git("rev-list", "--no-merges", UP + "..extra/" + i).splitlines())]
+    if held:
+        raise SystemExit("%s refused: prs holds %s, marked `live only: yes` (it must never reach the fork's main). "
+                         "A release that leaves it out is not built yet: ask Claude to build that, or take it off prs first." % (who, ", ".join(held)))
     prev = release_tags()[0] if release_tags() else ""
     rows = release_rows(tag, prev, extras)
     notes = release_notes(tag, extras, rows)

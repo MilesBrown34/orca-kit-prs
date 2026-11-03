@@ -143,6 +143,11 @@ q checkout -q -- hud.ts
 echo stray2 >> "$K/hud.ts"; q commit -qam "stray on prs"
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: refused with an unlisted change" 1 $?; has "release: names it" "stray on prs" "$out"
 q reset -q --hard HEAD~1
+sed -i '/^- merge notes: keep the old key row$/a - live only: yes' "$K/MY-EXTRAS.md"   # dots is merged into prs
+out="$("$X" release --dry-run 2>&1)"; rc_is "release: refused while prs holds a live-only extra" 1 $?; has "release: names it" "prs holds dots, marked" "$out"
+sed -i 's/^- live only: yes$/- live only: no/' "$K/MY-EXTRAS.md"
+out="$("$X" release --dry-run 2>&1)"; hasnt "release: live only: no is not held" "live only" "$out"
+sed -i '/^- live only: no$/d' "$K/MY-EXTRAS.md"
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: dry run passes the checks" 0 $?; has "release: plan shown" "tag prs" "$out"; has "release: first tag is v1.0.0" "v1.0.0" "$out"
 has "release: notes name the kit and the extras" "Orca-kit v1.0.0: Artekka's orchestration kit 1.1 plus 2 extras" "$out"; has "release: notes list an extra by group" "- ✨ **Tabs**: tab colors" "$out"; has "release: notes point at the full list" "described in EXTRAS.md" "$out"; has "release: page step shown" "Release page" "$out"; has "release: README step shown" "rewrite README's top block" "$out"; has "release: first entry" "First official release: Artekka's 1.1 plus 2 extras" "$out"
 hasnt "release: dry run leaves README alone" "v1.0.0" "$(git -C "$K" show prs:README.md)"
