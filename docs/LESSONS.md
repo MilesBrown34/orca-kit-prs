@@ -720,3 +720,4 @@ No project names, folders or people. Once a week the `lessons-clean` skill turns
 numbered lessons above (or one marked addition to an existing lesson), empties this list and moves
 the date.
 
+- A `git commit --amend` that follows a failed `&&` chain rewrites the previous commit, because the chained commit never ran. Why: the amend looks like a fix-up of your own commit, but the earlier commit was someone else's or an earlier change; check `git log -1` before any amend, and never amend after a chain that could have stopped. Case: 2026-11-06, a kit extra whose first commit failed its own test; the amend rewrote the branch tip and the skill never reached the merge.
