@@ -709,3 +709,14 @@ came from a verifier finding or a falsify run that went red where the builder ex
 151. **A tool that skips existing outputs turns a rerun into a no-op.** Move old outputs away
     (never copy them) before rerunning, or they are read as new; a run whose start and end state
     match, with no resource peak, did nothing (see 69 and 80).
+
+## Submitted (not yet cleaned)
+
+Last clean: 2026-11-06
+
+A session that learned a lesson appends one line here the same day:
+`- <the rule>. Why: <what goes wrong without it>. Case: <date>, <row or area>.`
+No project names, folders or people. Once a week the `lessons-clean` skill turns these lines into
+numbered lessons above (or one marked addition to an existing lesson), empties this list and moves
+the date.
+

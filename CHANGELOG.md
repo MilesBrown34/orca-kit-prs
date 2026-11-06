@@ -4,6 +4,7 @@ Newest first.
 
 ## Unreleased
 
+- **New: a weekly lessons clean.** The `lessons-clean` skill folds the lines sessions submit under `## Submitted` at the end of `docs/LESSONS.md` into numbered lessons (condensed once, never reworded later; new facts for an existing lesson as a marked addition), proves the file's shape with `tests/lessons-clean.test.sh`, and ends by asking the human for lessons to add. (PRS 2026-11-06)
 - **New, lessons 61–151 (`docs/LESSONS.md`, "Guards, gate logs and worktree git").** (PRS 2026-10-29)
 - **Changed: the GitHub repository is now `Artekka/orcastration-kit`** (was `claude-orchestration-kit`). Install with `claude plugin marketplace add Artekka/orcastration-kit`; the plugin id (`orchestration-kit@artekka-kits`), its slash commands and `~/.orchestration-kit/` do not change. GitHub redirects the old URL, so existing installs keep working. README, GETTING-STARTED, CONTRIBUTING, SECURITY, the issue-template link and the Code of Conduct contact link use the new name; the plugin manifest gains `homepage` and `repository`.
 - **Fixed: a team start with no Claude running exited silently.** (PRS 2026-10-17)
