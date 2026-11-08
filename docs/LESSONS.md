@@ -1296,3 +1296,4 @@ numbered lessons above (or one marked addition to an existing lesson), empties t
 the date.
 
 - A check that counts distinct levels (colours, bands, buckets) must also cap the share left outside the counted levels. Why: a smooth ramp still shows N big clusters plus a long thin tail, so a cluster count alone passes the very gradient it should refuse. Case: 2026-11-08, toon shader band guard.
+- Sessions launched with `--model opus[1m]` read their window as 200K from the model string (it carries no [1m] suffix) and asked for recycles at 115-180K; the launch flags in `ps` decide the window, so READY and orient should report the launch flag and ctx-fill should default to the team block's window, never the model string (2026-11-08).
