@@ -1295,3 +1295,4 @@ No project names, folders or people. Once a week the `lessons-clean` skill turns
 numbered lessons above (or one marked addition to an existing lesson), empties this list and moves
 the date.
 
+- A check that counts distinct levels (colours, bands, buckets) must also cap the share left outside the counted levels. Why: a smooth ramp still shows N big clusters plus a long thin tail, so a cluster count alone passes the very gradient it should refuse. Case: 2026-11-08, toon shader band guard.
