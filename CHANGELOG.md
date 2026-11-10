@@ -4,9 +4,11 @@ Newest first.
 
 ## Unreleased
 
+- **status-hud setup page: the pane's icon is a choice** (PRS 2026-10-23)
 - **New, status HUD: project dots.** (PRS 2026-10-14)
 - **New, status HUD: item switches.** (PRS 2026-10-14)
 - **New, status HUD: a setup page.** (PRS 2026-10-14)
+- **New, status HUD setup page: Done saves.** (PRS 2026-10-15)
 - **Changed, status HUD: alerts apart from information.** (PRS 2026-10-14)
 - **Fixed: a builder's start no longer carries the board's history.** (PRS 2026-10-26)
 - **Changed: closed rows leave the board at every seat start.** (PRS 2026-10-26)
