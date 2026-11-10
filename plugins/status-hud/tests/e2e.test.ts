@@ -23,6 +23,25 @@ for (const surface of ['terminal', 'desktop'] as const) {
   })
 }
 
+test('every host spawn runs from the home directory, never the session\'s own', async ($, on) => {
+  const w = world(on)
+  await $.session.start(START)
+  await w.clock.advance(3000)
+  expect(w.ran.length).toBeGreaterThan(3)
+  expect(w.cwds.every(c => c === '/home/u')).toBe(true)
+})
+
+test('after a heartbeat spawn that cannot start, the next tick writes the file', async ($, on) => {
+  const w = world(on)
+  w.noStart.add('sh')
+  await $.session.start(START)
+  await w.clock.advance(500)
+  expect(w.files.has('/home/u/.claude-status-hud/sessions/sess-1234567.json')).toBe(false)
+  w.noStart.delete('sh')
+  await w.clock.advance(3000)
+  expect(w.files.has('/home/u/.claude-status-hud/sessions/sess-1234567.json')).toBe(true)
+})
+
 test('crossing the report mark flashes the session row red in the drawn band, then settles', async ($, on) => {
   const w = world(on)
   await $.session.start(START)
@@ -64,6 +83,24 @@ test('Quiet Mode chip: press runs the configured command (mocked)', { options: {
   expect(seen()).toBe(false)
   await band.press({ key: 'p-quiet' })
   expect(seen()).toBe(true)
+  // no kit installed: the command runs from the session's directory, where its script is
+  expect(w.cwds[w.ran.findIndex(a => a[2] === 'bash g.sh on')]).toBe('/x')
+})
+
+test('Quiet Mode chip: with the kit installed, the chip shows and its command runs from the kit\'s folder, wherever the session stands', { options: { quietModeOnCmd: 'bash g.sh on', quietModeOffCmd: 'bash g.sh off', quietModeStatusCmd: 'false' } }, async ($, on) => {
+  const w = world(on)
+  w.files.set('/home/u/.claude-acct2/plugins/installed_plugins.json', JSON.stringify({ version: 2, plugins: { 'other@m': [{ installPath: '/o' }], 'orchestration-kit@m': [{ installPath: '/k' }] } }))
+  w.files.set('/k/scripts/quiet-mode.sh', '')
+  await $.session.start(START)
+  await w.clock.advance(500)
+  const band = await $.ui.mount({ plugin: 'status-hud', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  expect(JSON.stringify(await band.drawn())).toContain('WORK mode')
+  await band.press({ key: 'p-quiet' })
+  const i = w.ran.findIndex(a => a[2] === 'bash g.sh on')
+  expect(i).toBeGreaterThanOrEqual(0)
+  expect(w.cwds[i]).toBe('/k')
+  // every other spawn still runs from home
+  expect(w.cwds.filter((c, j) => j !== i).every(c => c === '/home/u')).toBe(true)
 })
 
 test('the heartbeat never carries the prompt text, a raw command, a path or a URL; the file is chmod 600 and the dir 700', { options: { refreshSeconds: 1 } }, async ($, on) => {
@@ -304,6 +341,68 @@ test('tracked programs a session started ride its heartbeat and draw as a chip; 
   const tree = JSON.stringify(await band.drawn())
   expect(tree).toContain('live v0.2')
   expect(tree).toContain('godot: Orca')
+})
+
+// Background work: the main turn's Stop lists what is still running; idle with some is `bg` (◔), and the heartbeat names it.
+const END = { answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' } as never
+const TASKS = [
+  { id: 'b1', type: 'shell', status: 'running', description: 'Run the long check', command: 'curl -H "Authorization: SECRET-TOKEN" https://x.example/y' },
+  { id: 'a1', type: 'subagent', status: 'running', description: 'Review the change', agent_type: 'Explore' },
+]
+// ◔ drawn in the band (a key row may hold one too, so tests compare against an idle drawing).
+const bgMarks = async ($: any): Promise<number> => ((await drawnBand($)).match(/◔/g) ?? []).length
+// The engine's own end of a turn and of a prompt, beneath the plugin.
+const turns = (on: any): void => {
+  on('turn.complete', async () => ({ text: '' }))
+  on('prompt.submit', async (_$: unknown, e: { text: string }) => ({ text: e.text }))
+  on('classic.Stop', async () => ({}))
+}
+
+test('a turn that ends with background work still running is ◔ bg, naming the first job and +N, never the command', async ($, on) => {
+  turns(on)
+  const w = world(on)
+  await $.session.start(START)
+  await w.clock.advance(500)
+  await $.turn.complete(END)
+  await w.clock.advance(3000)
+  const idle = await bgMarks($)
+  await $.classic.Stop({ stop_hook_active: false, background_tasks: TASKS } as never)
+  await w.clock.advance(3000)
+  const hb = JSON.parse(w.files.get(HB) ?? '{}')
+  expect(hb.state).toBe('bg')
+  expect(hb.activity).toBe('bg: Run the long check +1')
+  expect(w.files.get(HB)).not.toContain('SECRET-TOKEN')
+  expect(await bgMarks($)).toBe(idle + 1)
+})
+
+test('the next turn that stops with nothing in flight goes back to ○ idle', async ($, on) => {
+  turns(on)
+  const w = world(on)
+  await $.session.start(START)
+  await w.clock.advance(500)
+  await $.turn.complete(END)
+  await w.clock.advance(3000)
+  const idle = await bgMarks($)
+  await $.classic.Stop({ stop_hook_active: false, background_tasks: TASKS } as never)
+  await $.prompt.submit({ text: 'the job finished' } as never)
+  await $.turn.complete(END)
+  await $.classic.Stop({ stop_hook_active: false, background_tasks: [] } as never)
+  await w.clock.advance(3000)
+  const hb = JSON.parse(w.files.get(HB) ?? '{}')
+  expect(hb.state).toBe('idle')
+  expect(hb.activity).toBe('')
+  expect(await bgMarks($)).toBe(idle)
+})
+
+test('a subagent\'s turn ending leaves the main session busy', async ($, on) => {
+  turns(on)
+  const w = world(on)
+  await $.session.start(START)
+  await w.clock.advance(500)
+  await $.prompt.submit({ text: 'go' } as never)
+  await $.turn.complete({ ...(END as object), agentId: 'a1' } as never)
+  await w.clock.advance(3000)
+  expect(JSON.parse(w.files.get(HB) ?? '{}').state).toBe('busy')
 })
 
 test('the live version stays when a board rewrite drops the DEPLOY line (kept in the status dir for the next session); a new version replaces it', async ($, on) => {

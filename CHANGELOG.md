@@ -4,6 +4,7 @@ Newest first.
 
 ## Unreleased
 
+- **New, status HUD: background state.** (PRS 2026-10-19)
 - **status-hud setup page: the pane's icon is a choice** (PRS 2026-10-23)
 - **New, status HUD: project dots.** (PRS 2026-10-14)
 - **New, status HUD: item switches.** (PRS 2026-10-14)
