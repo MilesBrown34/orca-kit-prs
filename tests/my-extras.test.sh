@@ -122,6 +122,13 @@ out="$(git -C "$K" push origin --delete work 2>&1)"; rc_is "hook: a branch delet
 q checkout -q -b bare-extra upstream/main; echo "zebrafinch on a branch without the tool" >> "$K/hud.ts"; q commit -qam "no tool here"
 out="$(git -C "$K" push origin bare-extra 2>&1)"; rc_is "hook: blocks from a branch without my-extras (uses prs's copy)" 1 $?; has "hook: still names the file" "hud.ts" "$out"
 q reset -q --hard HEAD~1; out="$(git -C "$K" push origin bare-extra 2>&1)"; rc_is "hook: clean branch without my-extras pushes" 0 $?
+# --- what the upstream kit already publishes passes the hook (his own commits and lines); the same word added here does not
+echo "thanks, Zebrafinch" >> "$H/CREDITS.md"; git -C "$H" add CREDITS.md; git -C "$H" commit -qm "credit Zebrafinch"; q fetch -q upstream
+q checkout -q -b on-his-new upstream/main; echo fine >> "$K/hud.ts"; q commit -qam "a clean change on his newer kit"
+out="$(git -C "$K" push origin on-his-new 2>&1)"; rc_is "hook: his own published word passes" 0 $?
+echo "thanks again, Zebrafinch" >> "$K/CREDITS.md"; q commit -qam "one more line"
+out="$(git -C "$K" push origin on-his-new 2>&1)"; rc_is "hook: the same word in a line of ours still blocks" 1 $?; has "hook: names our line" "thanks again" "$out"
+q reset -q --hard HEAD~1; q checkout -q prs
 q checkout -q prs; q branch -q -D bare-extra; git -C "$K" push -q origin --delete bare-extra
 git -C "$K" worktree add -q "$TMP/wt" -b wt-branch prs 2>/dev/null
 echo "zebrafinch again" >> "$TMP/wt/hud.ts"; git -C "$TMP/wt" -c user.name=t -c user.email=t@t commit -qam "from a worktree"

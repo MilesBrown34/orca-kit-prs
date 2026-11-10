@@ -12,12 +12,15 @@
 #        my-extras/push-check file <path>...     scan plain files (release notes, a PR body) before they go anywhere
 #        my-extras/push-check hook <remote> <url> what git calls (refs on stdin): for each pushed branch or tag,
 #                                                the tree at its tip plus the message and added lines of every
-#                                                commit that remote does not hold yet (history it already has passes)
+#                                                commit that remote does not hold yet (history it already has passes).
+#                                                What the upstream kit already publishes passes too: its commits,
+#                                                and a line its tree holds in the same file with the same text
 # Exit 0 = clean, 1 = REFUSED (hits shown as ref:file:line or sha: line, first few only), 64 = usage or no word list.
-# Env: MY_EXTRAS_REPO (default this script's repo), MY_EXTRAS_WORDS (see above).
+# Env: MY_EXTRAS_REPO (default this script's repo), MY_EXTRAS_WORDS (see above), MY_EXTRAS_UPSTREAM (default upstream/main).
 set -uo pipefail
 REPO="${MY_EXTRAS_REPO:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
 WORDS="${MY_EXTRAS_WORDS:-$HOME/.orchestration-kit/personal-words}"
+UPREF="${MY_EXTRAS_UPSTREAM:-upstream/main}"; UPREMOTE="${UPREF%%/*}"
 cmd="${1:-}"; shift || true
 g() { git -C "$REPO" "$@"; }
 usage() { sed -n '8,15p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 64; }
@@ -48,7 +51,7 @@ case "$cmd" in tree|diff|file|hook) ;; *) usage ;; esac
 PAT="$(mktemp)"
 grep -v '^[[:space:]]*\(#\|$\)' "$WORDS" >"$PAT"
 [ -s "$PAT" ] || { echo "REFUSED: the private word list at $WORDS is empty"; exit 64; }
-HITS="$(mktemp)"; trap 'rm -f "$PAT" "$HITS"' EXIT
+HITS="$(mktemp)"; THEIRS="$(mktemp)"; trap 'rm -f "$PAT" "$HITS" "$THEIRS"' EXIT
 MAX=8
 scan_tree() {   # every file at a ref
   g grep -n -i -E -f "$PAT" "$1" -- . 2>/dev/null >>"$HITS"
@@ -59,6 +62,11 @@ scan_commits() {   # "$@" = a rev-list range or list: each commit's whole messag
            msg{print c ": " $0; next} /^\+\+\+ /{next} /^\+/{print c ": " substr($0, 2)}' \
     | grep -i -E -f "$PAT" >>"$HITS"
 }
+scan_tree_own() {   # every file at a ref, minus the lines the upstream kit's tree already holds (same file, same text)
+  g grep -n -i -E -f "$PAT" "$UPREF" -- . 2>/dev/null | sed "s|^$UPREF:||" | sed 's/^\([^:]*\):[0-9]*:/\1:/' >"$THEIRS"
+  g grep -n -i -E -f "$PAT" "$1" -- . 2>/dev/null \
+    | awk -v pre="$1:" -v theirs="$THEIRS" 'FILENAME==theirs{seen[$0]=1; next} {l=substr($0, length(pre)+1); k=l; sub(/:[0-9]+:/, ":", k); if (!(k in seen)) print}' "$THEIRS" - >>"$HITS"
+}
 zero=0000000000000000000000000000000000000000
 case "$cmd" in
   tree) [ $# -ge 1 ] || usage; for r in "$@"; do scan_tree "$r"; done ;;
@@ -68,8 +76,8 @@ case "$cmd" in
     remote="${1:-origin}"
     while read -r lref lsha rref rsha; do
       [ -n "${lsha:-}" ] && [ "$lsha" != "$zero" ] || continue    # a branch delete carries nothing
-      scan_tree "$lsha"
-      scan_commits "$lsha" --not --remotes="$remote"    # every commit the remote does not hold yet, on any branch
+      scan_tree_own "$lsha"
+      scan_commits "$lsha" --not --remotes="$remote" --remotes="$UPREMOTE"    # every commit neither the remote nor the upstream kit holds yet
     done ;;
 esac
 hits="$(grep -c . "$HITS")"
