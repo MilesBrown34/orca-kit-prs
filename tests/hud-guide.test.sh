@@ -38,7 +38,7 @@ readme_ids=" $(sed -n 's/^| \(Host\|Sessions\|Chips\) | \(.*\) |$/\2/p' "$ROOT/p
 for id in $(grep -o '"id":"[a-z0-9-]*"' "$P" | sed 's/"id":"\(.*\)"/\1/' | sort -u); do
   has "guide item $id is a README item" " $id " "$readme_ids"
 done
-for gone in face cpu-mark perm-mode gates queue holding extra live next; do
+for gone in face cpu-mark perm-mode gates queue holding extra next; do
   hasnt "the page does not offer $gone (not in this HUD)" "\"id\":\"$gone\"" "$page"
 done
 for opt in sessionFaces headerIcon; do hasnt "the page does not offer $opt" "$opt" "$page"; done

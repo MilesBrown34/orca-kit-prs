@@ -5,13 +5,16 @@ const GB = 1024 * 1024
 const shq = (s: string): string => `'${s.replace(/'/g, `'\\''`)}'`
 
 /** One shell spawn for every cheap metric; sections are marked so one bad tool cannot shift the rest. */
-export function sampleScript(mounts: readonly string[]): string {
+export function sampleScript(mounts: readonly string[], comfyUrl = '', withPs = false): string {
   return [
     `echo '##load'; cat /proc/loadavg`,
     `echo '##nproc'; nproc`,
     `echo '##mem'; grep -E '^(MemTotal|MemAvailable):' /proc/meminfo`,
     `echo '##df'; df -Pk ${mounts.map(shq).join(' ')} 2>/dev/null`,
     `echo '##gpu'; nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits 2>/dev/null`,
+    ...(withPs ? [`echo '##ps'; ps -eo pid=,ppid=,args= 2>/dev/null`] : []),
+    // On WSL, Windows' own curl: a server on Windows (127.0.0.1 there) is out of WSL's reach.
+    ...(comfyUrl !== '' ? [`echo '##queue'; C=/mnt/c/Windows/System32/curl.exe; [ -x "$C" ] || C=curl; "$C" -s -m 1 ${shq(`${comfyUrl}/queue`)} 2>/dev/null; echo`] : []),
     `true`,
   ].join('; ')
 }

@@ -1,14 +1,15 @@
 import type { Host } from '../types'
 import type { Config } from './config'
 import { type Io, sh } from './io'
+import { countApps, countWindows, parsePs, parseQueue } from './apps'
 import { parseCommit, parseDf, parseGpu, parseHost, parseLoadavg, parseMeminfo, pushHist, sampleScript, sections } from './host'
 
 /** Host readings older than this are re-taken by whichever session notices first. */
 export const HOST_MAX_AGE_MS = 5000
-/** Longest a live writer can hold the lock: the sampler's timeout plus the commit command's. */
+/** Longest a live writer can hold the lock: the sampler's timeout plus the commit and Windows-programs commands'. */
 export const SAMPLER_TIMEOUT_MS = 10_000
 export const COMMIT_TIMEOUT_MS = 15_000
-export const HOLD_MAX_MS = SAMPLER_TIMEOUT_MS + COMMIT_TIMEOUT_MS
+export const HOLD_MAX_MS = SAMPLER_TIMEOUT_MS + 2 * COMMIT_TIMEOUT_MS
 /** A lock older than this belongs to a dead writer: well past the longest live hold, so a slow writer is never robbed. */
 export const LOCK_STALE_MS = HOLD_MAX_MS * 2 + 10_000
 
@@ -39,7 +40,7 @@ export async function refreshHost(io: Io, c: Config): Promise<{ ran: boolean; ho
   const token = `${now}-${Math.random().toString(36).slice(2, 10)}`
   await io.writeAtomic(`${lock}/owner`, `${token} ${now}`)
   try {
-    const out = await io.run(sh(sampleScript(c.mounts)), SAMPLER_TIMEOUT_MS)
+    const out = await io.run(sh(sampleScript(c.mounts, c.comfyUrl, c.apps.length > 0)), SAMPLER_TIMEOUT_MS)
     const s = sections(out.stdout)
     const load = parseLoadavg(s.load ?? [])
     const mem = parseMeminfo(s.mem ?? [])
@@ -52,6 +53,17 @@ export async function refreshHost(io: Io, c: Config): Promise<{ ran: boolean; ho
       const parsed = r.exitCode === 0 ? parseCommit(r.stdout, now) : null
       if (parsed) commit = parsed
     }
+    // Windows' list is a slow call like the commit reading, so it is spaced out the same way.
+    let winApps = cur?.winApps ?? null
+    if (c.apps.length > 0 && c.winAppsCmd !== '' && (winApps === null || now - winApps.at >= c.commitMs)) {
+      const r = await io.run(sh(c.winAppsCmd), COMMIT_TIMEOUT_MS)
+      winApps = { n: r.exitCode === 0 ? countWindows(r.stdout, c.apps) : {}, at: now }
+    }
+    // A program started from Linux on Windows shows on both sides: the larger count is the number running.
+    const apps: Record<string, number> = {}
+    for (const l of countApps(parsePs((s.ps ?? []).join('\n')), c.apps)) apps[l] = (apps[l] ?? 0) + 1
+    for (const [l, n] of Object.entries(winApps?.n ?? {})) apps[l] = Math.max(n, apps[l] ?? 0)
+    const queue = c.comfyUrl !== '' ? parseQueue((s.queue ?? []).join('\n')) : null
     const host: Host = {
       at: now,
       threads,
@@ -61,6 +73,9 @@ export async function refreshHost(io: Io, c: Config): Promise<{ ran: boolean; ho
       disks: parseDf(s.df ?? []),
       gpu,
       commit,
+      apps,
+      winApps,
+      queue,
       hist: {
         load: pushHist(cur?.hist.load ?? [], load[0]),
         ram: pushHist(cur?.hist.ram ?? [], mem.usedGb),

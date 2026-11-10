@@ -10,6 +10,8 @@ Newest first.
 - **New, status HUD: a setup page.** (PRS 2026-10-14)
 - **New, status HUD setup page: Done saves.** (PRS 2026-10-15)
 - **Changed, status HUD: alerts apart from information.** (PRS 2026-10-14)
+- **New, status HUD: programs in use and the live version.** (PRS 2026-10-15)
+- **Fixed, status HUD: the live version stays when a board rewrite drops it.** (PRS 2026-11-02)
 - **Fixed: a builder's start no longer carries the board's history.** (PRS 2026-10-26)
 - **Changed: closed rows leave the board at every seat start.** (PRS 2026-10-26)
 - **Added: a `builds on` line in the brief template.** (PRS 2026-10-26)
