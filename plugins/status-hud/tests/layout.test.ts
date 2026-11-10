@@ -138,6 +138,33 @@ test('dots: by account by default, by the session\'s project color with dotMode:
   // the pane's detail line names the project
   expect(drawPane(view({ snap: projSnap, cfg: proj }), 60).map(lineText).join('\n')).toContain('lunch-diary')
 })
+test('the pane draws the band\'s keys: context colors, and each project by name beside its dot color', async () => {
+  const proj = parseConfig({ dotMode: 'project' }, '/h')
+  for (const w of [30, 44, 60, 80]) {
+    const lines = drawPane(view({ snap: projSnap, cfg: proj }), w)
+    for (const l of lines) expect(widthOf(l)).toBeLessThanOrEqual(w)
+  }
+  const lines = drawPane(view({ snap: projSnap, cfg: proj }), 60)
+  const text = lines.map(lineText)
+  const title = text.findIndex(t => t.includes('SESSIONS 10 · 2 projects'))
+  const keys = text.slice(title + 1, text.findIndex(t => t.includes('Orca')))
+  expect(keys.join('\n')).toContain('CONTEXT of 1M')
+  expect(keys.join('\n')).toContain('● lunch-diary')
+  expect(keys.join('\n')).toContain('● book-shop')
+  expect(keys.join('\n')).toContain('○ idle')
+  // each kind of key starts its own line: the projects never share the context line
+  expect(keys.find(l => l.includes('lunch-diary'))).not.toContain('CONTEXT')
+  // the dot in the key is drawn in that project's own color
+  const runs = lines.slice(title + 1).flatMap(l => l.flatMap(s => s.runs))
+  const dotBefore = (name: string): string | undefined => runs.slice(0, runs.findIndex(r => r.text.includes(name))).findLast(r => r.text.includes('●'))?.fg
+  expect(dotBefore('lunch-diary')).toBe('#d35400')
+  expect(dotBefore('book-shop')).toBe('#16a085')
+  // account dots: no project key; hideItems switches the pane's keys off like the band's
+  expect(drawPane(view({ snap: projSnap }), 60).map(lineText).join('\n')).not.toContain('● lunch-diary')
+  const off = drawPane(view({ snap: projSnap, cfg: parseConfig({ dotMode: 'project', hideItems: 'context-key,dot-key' }, '/h') }), 60).map(lineText).join('\n')
+  expect(off).not.toContain('CONTEXT of')
+  expect(off).not.toContain('● lunch-diary')
+})
 const C_DIM = sessionRow(view(), S('Mars', 10, 'idle'), 70).runs(0).find(r => r.text.includes('Mars'))!.fg
 
 test('hideItems switches items off by id; unknown ids change nothing', async () => {
