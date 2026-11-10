@@ -4,6 +4,7 @@ Newest first.
 
 ## Unreleased
 
+- **Changed: the verifier reads its contract at the base.** (PRS 2026-10-24)
 - **Changed: the seat audits worktrees before assigning, a redo round starts beside the owner's reference, and briefs say how to run the gate.** (PRS 2026-10-29)
 - **Changed: a seat whose rows all wait on the human keeps working.** (PRS 2026-10-28)
 - **Changed: the seat's subagents do not write code either.** (PRS 2026-10-27)

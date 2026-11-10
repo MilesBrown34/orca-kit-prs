@@ -29,6 +29,7 @@ Dispatch a **fresh** `verifier`-type agent with the **contract only**: `spec` (c
 | **Output-compilation instruction** — for any "output/rendering unchanged" claim | A text diff cannot prove its output identical; compile base + head and compare |
 | **The environment's false-signal shapes** — killed runs, crash-after-pass, pipe-masked exits, plus any live shared-resource knobs (e.g. a container-sweep floor to raise) | Or an infra failure gets attributed to the code — or the verifier's gate kills a sibling's run |
 | **Reference counts** — the current main gate numbers, and the branch's base if it predates them | Or a stale base reads as a regression |
+| **Where the contract lives** — the brief's path and the base ref (`origin/main`), so the verifier reads them there, never from the branch | A branch can rewrite the brief or the overlay it is judged by |
 
 For a **delta re-verify** after a fix-roundtrip: name the previously-verified SHA + the deviation list, and scope to the fixes (the agent def carries the delta discipline).
 
