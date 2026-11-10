@@ -618,19 +618,20 @@ def good(text):
 
 
 def cmd_header():
+    """Left: Artekka's kit, green when prs has all of it, red when he has something prs lacks.
+    Right: the fork's released main (the newest release tag); prs is normally ahead of it."""
     fetch()
-    extras, _ = read_page()
-    n = len(in_kit(extras))
     mine = version(base())
-    line = "Orca-kit %s + %d extra%s   /   " % (mine, n, "" if n == 1 else "s")
     ahead = int(git("rev-list", "--count", "prs.." + UP) or 0)
     nv = version(UP)
     if ahead and nv == mine:
-        line += bad("▲ current %s + %d new change%s (news)" % (nv, ahead, "" if ahead == 1 else "s"))
+        line = bad("▲ Artekka %s + %d new change%s (news)" % (nv, ahead, "" if ahead == 1 else "s"))
     elif ahead or nv != mine:
-        line += bad("▲ current %s (news)" % nv)
+        line = bad("▲ Artekka %s, you have %s (news)" % (nv, mine))
     else:
-        line += good("current %s ✓" % mine)
+        line = good("Artekka %s ✓" % nv)
+    tags = release_tags()
+    line += "   /   " + ("your main %s" % tags[0] if tags else "your main: not released yet")
     stray = stray_commits()
     if stray:
         line += "   " + warn("⚠ %d unlisted change%s" % (len(stray), "" if len(stray) == 1 else "s"))
@@ -673,7 +674,7 @@ def cmd_news():
         for s in stray:
             print("  " + s)
     tags = release_tags()
-    print("Official version: %s." % (tags[0] if tags else "none yet (my-extras/my-extras release)"))
+    print("Your main (released): %s." % (tags[0] if tags else "none yet (my-extras/my-extras release)"))
 
 
 def cmd_status():

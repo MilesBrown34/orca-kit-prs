@@ -46,15 +46,15 @@ cat > "$K/MY-EXTRAS.md" <<'EOF'
 EOF
 
 # --- header, check, files
-out="$("$X" header)"; has "header: version and extras" "Orca-kit 1.0 + 2 extras" "$out"; hasnt "header: nothing new" "▲" "$out"; has "header: current shown green" "$(printf '\033[32mcurrent 1.0 ✓')" "$out"; hasnt "header: nothing unlisted" "⚠" "$out"
+out="$("$X" header)"; has "header: no release yet" "your main: not released yet" "$out"; hasnt "header: nothing new" "▲" "$out"; has "header: his kit shown green" "$(printf '\033[32mArtekka 1.0 ✓')" "$out"; hasnt "header: nothing unlisted" "⚠" "$out"
 out="$("$X" check)"; rc_is "check: clean prs passes" 0 $?
 has "files: from the branch" "scripts/launch.sh" "$("$X" files tabs)"
 out="$("$X" refresh)"; has "page: table row" "| Tabs | tab colors | Only mine | — |" "$(cat "$K/MY-EXTRAS.md")"
 has "page: PR number shown" "| Dots | project dots | Sent | #7 |" "$(cat "$K/MY-EXTRAS.md")"
 has "page: details kept" "### dots" "$(cat "$K/MY-EXTRAS.md")"; has "page: merge notes kept" "- merge notes: keep the old key row" "$(cat "$K/MY-EXTRAS.md")"; has "page: files from git" "files (from git): hud.ts" "$(cat "$K/MY-EXTRAS.md")"
-out="$("$X" header)"; has "header: refresh keeps the extras" "+ 2 extras" "$out"
+out="$("$X" news)"; has "news: refresh keeps the extras" "+ 2 extras" "$out"
 sed -i 's/^- status: Only mine$/- status: Building/' "$K/MY-EXTRAS.md"
-out="$("$X" header)"; has "header: an extra still being built is not counted" "+ 1 extra" "$out"
+out="$("$X" news)"; has "news: an extra still being built is not counted" "+ 1 extras" "$out"
 sed -i 's/^- status: Building$/- status: Only mine/' "$K/MY-EXTRAS.md"
 
 # --- a stray edit straight on prs is caught; a tracking-only commit is not
@@ -67,12 +67,12 @@ out="$("$X" check)"; rc_is "check: tracking-only commit is fine" 0 $?
 
 # --- his new commit under the same version number: red, and it says how many changes
 echo "# note" >> "$H/NOTES.md"; git -C "$H" add NOTES.md; git -C "$H" commit -qm "same version, one more commit"; q fetch -q upstream
-out="$("$X" header)"; has "header: same version, new commits named" "▲ current 1.0 + 1 new change (news)" "$out"; has "header: same version, new commits in red" "$(printf '\033[1;31m▲')" "$out"; hasnt "header: same version with new commits is not green" "✓" "$out"
+out="$("$X" header)"; has "header: same version, new commits named" "▲ Artekka 1.0 + 1 new change (news)" "$out"; has "header: same version, new commits in red" "$(printf '\033[1;31m▲')" "$out"; hasnt "header: same version with new commits is not green" "✓" "$out"
 
 # --- his new release: marker, news, refit only for the extra whose files he changed
 ver "$H" 1.1; echo "his launcher change" >> "$H/scripts/launch.sh"; printf '# Changelog\n\n## 1.1\n- **New: faster launch.**\n\n## 1.0\n' > "$H/CHANGELOG.md"
 git -C "$H" commit -qam "1.1"; q fetch -q upstream
-out="$("$X" header)"; has "header: newer version marked" "▲ current 1.1 (news)" "$out"; hasnt "header: not green when behind" "✓" "$out"; has "header: still on 1.0" "Orca-kit 1.0" "$out"
+out="$("$X" header)"; has "header: newer version marked" "▲ Artekka 1.1, you have 1.0 (news)" "$out"; hasnt "header: not green when behind" "✓" "$out"
 has "header: his newer kit in red" "$(printf '\033[1;31m▲')" "$out"; hasnt "header: his newer kit is not yellow" "$(printf '\033[1;33m▲')" "$out"; hasnt "header: NO_COLOR is plain" "$(printf '\033[')" "$(NO_COLOR=1 "$X" header)"
 out="$("$X" news)"; has "news: versions" "His latest: 1.1" "$out"; has "news: changelog heading" "New: faster launch." "$out"
 has "news: overlapping extra needs refit" "Tabs needs a refit (he changed scripts/launch.sh)" "$out"; has "news: other extra fine" "Dots: not affected" "$out"
@@ -179,9 +179,9 @@ out="$("$X" check)"; rc_is "check: readme commits belong to the extra" 0 $?
 [ "$(git -C "$R" rev-parse extra/fork-readme)" = "$(git -C "$K" rev-parse extra/fork-readme)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: readme extra branch not pushed to the fork"; }
 [ "$(git -C "$R" rev-parse main)" = "$(git -C "$K" rev-parse prs)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: fork main is not prs"; }
 [ "$(git -C "$R" rev-parse v1.0.0^{commit})" = "$(git -C "$K" rev-parse prs)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: tag not on the fork"; }
-out="$("$X" news)"; has "news: official version shown" "Official version: v1.0.0." "$out"
+out="$("$X" news)"; has "news: released main shown" "Your main (released): v1.0.0." "$out"
 echo more2 > "$K/my-extras/x"; q commit -qam "tracking 3"
-out="$("$X" header)"; hasnt "header: carries no release flag" "⚑" "$out"
+out="$("$X" header)"; hasnt "header: carries no release flag" "⚑" "$out"; has "header: names the released main" "your main v1.0.0" "$out"
 sed -i 's/^- status: Sent$/- status: Merged/' "$K/MY-EXTRAS.md"   # Dots went to his kit: the next entry says so
 out="$("$X" release 2>&1)"; rc_is "release: second release overwrites main" 0 $?; has "release: patch bump by default" "released v1.0.1" "$out"
 rd="$(git -C "$K" show prs:README.md)"; has "readme: second entry first" "### v1.0.1 (" "${rd%%### v1.0.0*}"; has "readme: entry says kit unchanged" "Artekka's kit still 1.1." "$rd"; has "readme: entry names the extra that left" "retired: Dots." "$rd"; hasnt "readme: list drops the merged extra" "**Dots**" "$rd"; has "readme: only new or changed rows" "No extra is new or changed in v1.0.1." "$rd"; hasnt "readme: nothing new in v1.0.1" "New and changed in v1.0.1" "$rd"; has "readme: nothing new carries the last list" "Last new and changed, in v1.0.0." "$rd"; has "readme: carried list in bullets" "- ✨ **Tabs**: tab colors" "${rd%%<!-- /own-fork:top -->*}"
