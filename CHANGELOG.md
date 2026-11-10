@@ -4,6 +4,8 @@ Newest first.
 
 ## Unreleased
 
+- **New: skill checks.** (PRS 2026-10-22)
+- **New: `scripts/skill-usage.py <session log folder> [--days N]`** (PRS 2026-10-22)
 - **New: kit update in one step.** (PRS 2026-10-14)
 - **New: validator lanes.** (PRS 2026-10-27)
 - **New: personal team defaults, asked once per machine.** (PRS 2026-10-14)
