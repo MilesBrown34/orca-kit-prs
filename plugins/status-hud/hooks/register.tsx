@@ -33,6 +33,8 @@ const S: {
   hasFlash: boolean
   /** Some session is busy: redraw each tick so its mark turns. */
   anyBusy: boolean
+  /** Descriptions of this session's background work still running, from the last `classic.Stop`. */
+  bg: string[]
   last: Snapshot | null
   /** The session directory (session.start's cwd): the chip's toggle script is looked up there. */
   cwd: string
@@ -53,6 +55,7 @@ const S: {
   lastFull: 0,
   hasFlash: false,
   anyBusy: false,
+  bg: [],
   last: null,
   cwd: '',
   repo: '',
@@ -69,6 +72,15 @@ const S: {
  */
 function shown(): boolean {
   return S.forceShow ?? shownByConfig()
+}
+
+/** The turn is over: idle, or `bg` naming the first background job (+N for the rest) while any still runs. */
+function settle($: Dollar): void {
+  const n = S.bg.length
+  S.me.state = n > 0 ? 'bg' : 'idle'
+  S.me.activity = n > 0 ? oneLine(`bg: ${S.bg[0]}${n > 1 ? ` +${n - 1}` : ''}`, 100) : ''
+  S.lastFull = 0
+  void doTick($)
 }
 
 function shownByConfig(): boolean {
@@ -270,12 +282,19 @@ export const register: Register = (on, options) => {
   }).catch(($, e, next) => next(e))
 
   on('turn.complete', ($, e, next) => {
-    S.me.state = 'idle'
-    S.me.activity = ''
-    S.lastFull = 0
-    void doTick($)
+    // A subagent's turn ending says nothing about this session's own turn.
+    if (e.agentId !== undefined) return next(e)
+    settle($)
     return next(e)
   })
+
+  // The engine lists the background work still in flight when the main turn stops: idle with some is `bg`, not done.
+  on('classic.Stop', ($, e, next) => {
+    // The description only: a shell task's command can carry a secret and the heartbeat is plaintext.
+    S.bg = (e.background_tasks ?? []).map(t => t.description || t.type)
+    if (S.me.state === 'idle' || S.me.state === 'bg') settle($)
+    return next(e)
+  }).catch(($, e, next) => next(e))
 
   on('command.run', { command: 'hud' }, async ($, e) => {
     const arg = e.args.trim().toLowerCase()

@@ -1,4 +1,5 @@
-export type Busy = 'busy' | 'idle' | 'shell'
+/** `bg`: the turn ended but background work it started (a shell, a subagent, a workflow) is still running and will wake it. */
+export type Busy = 'busy' | 'idle' | 'shell' | 'bg'
 
 /** One session's self-report, written to <statusDir>/sessions/<id>.json. */
 export type Heartbeat = {

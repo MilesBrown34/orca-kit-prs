@@ -197,7 +197,7 @@ export function sessionRow(v: View, h: Heartbeat, w: number, selected = false): 
   const bg = flashing ? C.rD : selected ? C.gray : null
   const fg = flashing ? C.white : LV[lv]
   for (let x = 0; x < w; x++) s.put(x, 0, ' ', C.tx, bg)
-  const st = h.state === 'busy' ? [spin(v.now), C.green] : h.state === 'shell' ? ['$', C.orange] : ['○', C.dim]
+  const st = h.state === 'busy' ? [spin(v.now), C.green] : h.state === 'shell' ? ['$', C.orange] : h.state === 'bg' ? ['◔', C.cyan] : ['○', C.dim]
   let x = 0
   if (on('dot')) {
     s.put(0, 0, '●', dotColor(v, h), bg)
@@ -292,6 +292,7 @@ export function drawBand(v: View, cols: number, maxRows: number): Line[] {
   if (on('state-key')) {
     key('▘', C.green, 'busy')
     key('$', C.orange, 'shell')
+    key('◔', C.cyan, 'bg')
     key('○', C.dim, 'idle')
   }
   const cap = Math.max(0, area)
@@ -340,7 +341,7 @@ export function drawCompact(v: View, W: number): Line[] {
     const flashing = isFlashing(v.flash[h.id], v.now) && flashPhase(v.now)
     const bg = flashing ? C.rD : h.state === 'idle' ? C.gray : LVD[lv]
     const txt = ` ${trunc(h.name, 8)} ${kfmt(h.tokens)}${lv === 'red' ? '!' : ''} `
-    const g = h.state === 'busy' ? spin(v.now) : h.state === 'shell' ? '$' : '○'
+    const g = h.state === 'busy' ? spin(v.now) : h.state === 'shell' ? '$' : h.state === 'bg' ? '◔' : '○'
     if (x + txt.length + 4 > W) break
     s.put(x, 1, ' ', C.tx, bg)
     s.put(x + 1, 1, shows(v.cfg, 'dot') ? '●' : ' ', dotColor(v, h), bg)

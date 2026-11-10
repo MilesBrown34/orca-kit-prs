@@ -38,7 +38,7 @@ export const ITEMS: { id: string; area: string; name: string; what: string; seen
   { id: 'dot-key', area: 'Sessions', name: 'Project key', what: 'Which dot colour is which project, by name.',
     seen: 'Only with project dots, beside the colour key when there is room.', when: 'choose project dots above', shows: 'setting',
     turnOn: 'Pick "Its project (tab colour)" at the top of this page.' },
-  { id: 'state-key', area: 'Sessions', name: 'Busy/idle key', what: 'Explains the mark after each session: ▘ busy (it turns while working), $ running a command, ○ idle.',
+  { id: 'state-key', area: 'Sessions', name: 'Busy/idle key', what: 'Explains the mark after each session: ▘ busy (it turns while working), $ running a command, ◔ background work still running (it will wake), ○ idle.',
     seen: 'All the time, at the end of the key row under the title.' },
   { id: 'dot', area: 'Sessions', name: 'Session dot', what: 'A coloured dot at the start of each session row: its Claude account, or its project (the colour of its terminal tab when the launcher recorded one). The choice is at the top of this page.',
     seen: 'All the time, on every session row.' },

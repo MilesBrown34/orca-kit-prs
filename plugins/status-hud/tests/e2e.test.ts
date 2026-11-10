@@ -305,3 +305,65 @@ test('tracked programs a session started ride its heartbeat and draw as a chip; 
   expect(tree).toContain('live v0.2')
   expect(tree).toContain('godot: Orca')
 })
+
+// Background work: the main turn's Stop lists what is still running; idle with some is `bg` (◔), and the heartbeat names it.
+const END = { answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' } as never
+const TASKS = [
+  { id: 'b1', type: 'shell', status: 'running', description: 'Run the long check', command: 'curl -H "Authorization: SECRET-TOKEN" https://x.example/y' },
+  { id: 'a1', type: 'subagent', status: 'running', description: 'Review the change', agent_type: 'Explore' },
+]
+// ◔ drawn in the band (a key row may hold one too, so tests compare against an idle drawing).
+const bgMarks = async ($: any): Promise<number> => ((await drawnBand($)).match(/◔/g) ?? []).length
+// The engine's own end of a turn and of a prompt, beneath the plugin.
+const turns = (on: any): void => {
+  on('turn.complete', async () => ({ text: '' }))
+  on('prompt.submit', async (_$: unknown, e: { text: string }) => ({ text: e.text }))
+  on('classic.Stop', async () => ({}))
+}
+
+test('a turn that ends with background work still running is ◔ bg, naming the first job and +N, never the command', async ($, on) => {
+  turns(on)
+  const w = world(on)
+  await $.session.start(START)
+  await w.clock.advance(500)
+  await $.turn.complete(END)
+  await w.clock.advance(3000)
+  const idle = await bgMarks($)
+  await $.classic.Stop({ stop_hook_active: false, background_tasks: TASKS } as never)
+  await w.clock.advance(3000)
+  const hb = JSON.parse(w.files.get(HB) ?? '{}')
+  expect(hb.state).toBe('bg')
+  expect(hb.activity).toBe('bg: Run the long check +1')
+  expect(w.files.get(HB)).not.toContain('SECRET-TOKEN')
+  expect(await bgMarks($)).toBe(idle + 1)
+})
+
+test('the next turn that stops with nothing in flight goes back to ○ idle', async ($, on) => {
+  turns(on)
+  const w = world(on)
+  await $.session.start(START)
+  await w.clock.advance(500)
+  await $.turn.complete(END)
+  await w.clock.advance(3000)
+  const idle = await bgMarks($)
+  await $.classic.Stop({ stop_hook_active: false, background_tasks: TASKS } as never)
+  await $.prompt.submit({ text: 'the job finished' } as never)
+  await $.turn.complete(END)
+  await $.classic.Stop({ stop_hook_active: false, background_tasks: [] } as never)
+  await w.clock.advance(3000)
+  const hb = JSON.parse(w.files.get(HB) ?? '{}')
+  expect(hb.state).toBe('idle')
+  expect(hb.activity).toBe('')
+  expect(await bgMarks($)).toBe(idle)
+})
+
+test('a subagent\'s turn ending leaves the main session busy', async ($, on) => {
+  turns(on)
+  const w = world(on)
+  await $.session.start(START)
+  await w.clock.advance(500)
+  await $.prompt.submit({ text: 'go' } as never)
+  await $.turn.complete({ ...(END as object), agentId: 'a1' } as never)
+  await w.clock.advance(3000)
+  expect(JSON.parse(w.files.get(HB) ?? '{}').state).toBe('busy')
+})

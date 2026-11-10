@@ -17,7 +17,7 @@ Switch while running with `/hud band`, `/hud pane` or `/hud off`. The choice is 
 
 ## What it shows
 
-- **Every session**: name, a dot (by account, blue = account 1, purple = account 2; or by project, see Dots), context bar and size, busy/shell/idle glyph, and the last tool or prompt as the activity line.
+- **Every session**: name, a dot (by account, blue = account 1, purple = account 2; or by project, see Dots), context bar and size, busy/shell/bg/idle glyph (`◔` bg: the turn ended but background work it started is still running and will wake it, so the session can be talked to but is not done), and the last tool or prompt as the activity line (`bg: <first job> +N` while in the background).
   Colors: green below the amber mark, amber from it, red from the report mark. Every color has a second cue: `~` after the size at amber, `!` at red.
   A session that crosses the report mark **flashes red** for `flashSeconds`.
 - **Host**: CPU load against the thread count (with sparkline), RAM, disks, GPU utilization and temperature, VRAM.
