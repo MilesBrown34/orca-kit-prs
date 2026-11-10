@@ -9,7 +9,7 @@ import { countApps, liveVersion, parsePs } from '../lib/apps'
 import type { Io } from '../lib/io'
 import { ensureStatusDirs } from '../lib/ensureDir'
 import { newTickState, tick } from '../lib/tick'
-import { QUIET_EXPLAIN, quietFailure, quietNote, toggleQuietMode } from '../lib/quietmode'
+import { kitDirFrom, QUIET_EXPLAIN, quietFailure, quietNote, toggleQuietMode } from '../lib/quietmode'
 import { drawBand, drawPane, type Line, type View } from '../lib/layout'
 
 const PANE = 'status-hud'
@@ -36,7 +36,7 @@ const S: {
   /** Descriptions of this session's background work still running, from the last `classic.Stop`. */
   bg: string[]
   last: Snapshot | null
-  /** The session directory (session.start's cwd): the chip's toggle script is looked up there. */
+  /** The session directory (session.start's cwd). */
   cwd: string
   /** The session's project (main checkout; '' outside a repo), its tab's color (CLAUDE_TAB_COLOR), and when its dot color was last read. */
   repo: string
@@ -46,6 +46,8 @@ const S: {
   claudePid: number
   /** This session's project's live version, read from its board with the dot color. */
   live: string
+  /** Where the quiet chip's commands run and its script is looked up: the installed kit's folder, else the session's. */
+  quietDir: string
   /** Set by `/hud band|pane` (true) or `/hud off` (false) in this process only: it overrides showForNames here and nowhere else. */
   forceShow: boolean | null
 } = {
@@ -63,6 +65,7 @@ const S: {
   colorAt: 0,
   claudePid: 0,
   live: '',
+  quietDir: '',
   forceShow: null,
 }
 
@@ -88,18 +91,23 @@ function shownByConfig(): boolean {
   return names.length === 0 || names.includes(S.me.name)
 }
 
-function makeIo($: Dollar): Io {
+function makeIo($: Dollar, home: string): Io {
+  // Every spawn runs from the home directory, never the session's own: a session that removes the worktree it
+  // stands in has no current directory until its next `cd`, and a spawn from there fails to start (ENOENT).
+  // The quiet chip's commands are the one exception: they name the kit's script by a relative path (kit folder, below).
+  const at = (timeoutMs?: number, cwd?: string) => (timeoutMs ? { cwd: cwd || home, timeoutMs } : { cwd: cwd || home })
   return {
     read: p => $.fs.read(p).then(String, () => null),
     writeAtomic: async (p, text) => {
       const tmp = `${p}.${S.me.id}.tmp`
       await $.fs.write(tmp, text)
-      // One spawn: owner-only permissions, then the atomic rename.
-      await $.process.run(['sh', '-c', 'chmod 600 "$1" && mv -f "$1" "$2"', 'sh', tmp, p])
+      // One spawn: owner-only permissions, then the atomic rename. A tick that cannot spawn is skipped, not an
+      // error in the chat: the next tick writes the same file again.
+      await $.process.run(['sh', '-c', 'chmod 600 "$1" && mv -f "$1" "$2"', 'sh', tmp, p], at()).catch(() => undefined)
     },
     list: p => $.fs.list(p).then(es => es.filter(x => x.kind === 'file').map(x => ({ name: x.name, mtimeMs: x.mtimeMs })), () => []),
-    remove: async p => void (await $.process.run(['rm', '-f', p]).catch(() => undefined)),
-    run: (argv, timeoutMs) => $.process.run(argv, timeoutMs ? { timeoutMs } : {}).then(r => ({ exitCode: r.exitCode, stdout: r.stdout, stderr: r.stderr }), () => ({ exitCode: 127, stdout: '' })),
+    remove: async p => void (await $.process.run(['rm', '-f', p], at()).catch(() => undefined)),
+    run: (argv, timeoutMs, cwd) => $.process.run(argv, at(timeoutMs, cwd)).then(r => ({ exitCode: r.exitCode, stdout: r.stdout, stderr: r.stderr }), () => ({ exitCode: 127, stdout: '' })),
     now: () => $.clock.now(),
   }
 }
@@ -121,7 +129,7 @@ async function doTick($: Dollar): Promise<void> {
       }
       await refreshColor(c, io, now)
       await refreshApps(c, io)
-      const snap = { ...(await tick(io, c, S.me, S.ts, exists, S.cwd)), live: S.live }
+      const snap = { ...(await tick(io, c, S.me, S.ts, exists, S.quietDir)), live: S.live }
       S.hasFlash = Object.keys(S.ts.flash).length > 0
       S.anyBusy = snap.sessions.some(x => x.state === 'busy')
       S.last = snap
@@ -172,7 +180,7 @@ async function refreshApps(c: Config, io: Io): Promise<void> {
 async function flipQuiet($: Dollar): Promise<string> {
   const { cfg: c, io } = S
   if (!c || !io) return 'Status HUD is starting.'
-  const r = await toggleQuietMode(io, c, S.last?.quietMode ?? null)
+  const r = await toggleQuietMode(io, c, S.last?.quietMode ?? null, S.quietDir)
   // A failure is state, not just a toast: the chip stays red until it expires or a press works.
   S.ts.quietErr = r.ok ? null : quietFailure(r, await $.clock.now())
   S.lastFull = 0
@@ -240,7 +248,7 @@ export const register: Register = (on, options) => {
     const home = (await $.env.get('HOME')) ?? ''
     const c = parseConfig(options, home)
     S.cfg = c
-    S.io = makeIo($)
+    S.io = makeIo($, home || '/')
     S.exists = p => $.fs.exists(p)
     S.cwd = e.cwd ?? ''
     const saved = await $.store.get('variant')
@@ -261,7 +269,9 @@ export const register: Register = (on, options) => {
     if (S.repo) me.project = S.repo.split('/').pop() ?? ''
     S.tabColor = (await $.env.get('CLAUDE_TAB_COLOR')) ?? ''
     S.colorAt = 0
-    me.account = accountFromConfigDir(env.trim().replace(/^CLAUDE_CONFIG_DIR=/, '') || (await $.env.get('CLAUDE_CONFIG_DIR')))
+    const configDir = env.trim().replace(/^CLAUDE_CONFIG_DIR=/, '') || (await $.env.get('CLAUDE_CONFIG_DIR'))
+    me.account = accountFromConfigDir(configDir)
+    S.quietDir = kitDirFrom(await S.io.read(`${configDir || `${home}/.claude`}/plugins/installed_plugins.json`)) || S.cwd
     await $.command.register({ name: 'hud', description: 'Status HUD: /hud band | pane | off | quiet | help' })
     $.clock.every(500, () => void doTick($))
     void doTick($)
@@ -312,7 +322,7 @@ export const register: Register = (on, options) => {
     const arg = e.args.trim().toLowerCase()
     if (arg === 'band' || arg === 'pane' || arg === 'off') return { text: await setVariant($, arg) }
     if (arg === 'quiet') return { text: await flipQuiet($) }
-    if (arg === 'help') return { text: `${QUIET_EXPLAIN} The chip shows only where the toggle script (quietModeRequiresFile, default scripts/quiet-mode.sh) exists in the session directory, or while quiet mode is already on; set that option to an empty value to always show it.` }
+    if (arg === 'help') return { text: `${QUIET_EXPLAIN} The chip shows only where the toggle script (quietModeRequiresFile, default scripts/quiet-mode.sh) exists in the installed kit's folder (else the session directory), or while quiet mode is already on; set that option to an empty value to always show it.` }
     const snap = await read($, snapA)
     if (!snap) return { text: 'Status HUD: no reading yet.' }
     const over = snap.sessions.filter(x => S.cfg && x.tokens >= S.cfg.reportMark).map(x => x.name)

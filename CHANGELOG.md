@@ -4,6 +4,8 @@ Newest first.
 
 ## Unreleased
 
+- **Fixed, status HUD: a hook error when the session's directory disappears.** (PRS 2026-10-26)
+- **Fixed, status HUD: the quiet chip runs the kit's own script.** (PRS 2026-11-02)
 - **status-hud: the pane's icon is a setting** (PRS 2026-10-23)
 - **New, status HUD: background state.** (PRS 2026-10-19)
 - **status-hud setup page: the pane's icon is a choice** (PRS 2026-10-23)
