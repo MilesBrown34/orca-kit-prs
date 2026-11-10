@@ -4,6 +4,7 @@ Newest first.
 
 ## Unreleased
 
+- **Changed: a lighter seat skill.** (PRS 2026-10-22)
 - **New: a weekly lessons clean.** The `lessons-clean` skill folds the lines sessions submit under `## Submitted` at the end of `docs/LESSONS.md` into numbered lessons (condensed once, never reworded later; new facts for an existing lesson as a marked addition), proves the file's shape with `tests/lessons-clean.test.sh`, and ends by asking the human for lessons to add. (PRS 2026-11-06)
 - **New, lessons 61–151 (`docs/LESSONS.md`, "Guards, gate logs and worktree git").** (PRS 2026-10-29)
 - **New: a secrets guard.** (PRS 2026-10-24)
