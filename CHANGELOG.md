@@ -4,6 +4,7 @@ Newest first.
 
 ## Unreleased
 
+- **New: kit update in one step.** (PRS 2026-10-14)
 - **New: validator lanes.** (PRS 2026-10-27)
 - **New: personal team defaults, asked once per machine.** (PRS 2026-10-14)
 - **New: a sibling name pool.** (PRS 2026-10-14)
