@@ -16,7 +16,7 @@ The kit's vocabulary, in one place. Skills and lessons use these words without r
 | **Overlay** | `docs/orchestration/ORCHESTRATION.md` — the project-specific settings every skill reads first (gate, deploy, team, docs) |
 | **Solo mode** (practice) | Two or more sessions coordinated only by the board + cross-verification; you are the orchestrator, by hand. A practice ground for learning the loop before trusting a seat |
 | **Team mode** | Adds a seat that coordinates for you. The default |
-| **Seat** | The orchestrator session (default name `Orca`). Talks to you; plans, assigns, verifies-by-proxy, merges, deploys. Never writes feature code |
+| **Seat** | The orchestrator session (default name `Orca`). Talks to you; plans, assigns, verifies-by-proxy, merges, deploys. Never writes feature code, and neither do its subagents |
 | **Sibling** | A builder session (default names `Sib1`, `Sib2` …). Talks to the seat, not to you |
 | **Banner** | `ORCHESTRATOR ACTIVE` block at the top of the board naming the current seat. No banner = solo (practice) mode |
 | **Era** | One seat's tenure. When a seat is recycled, the next one starts era N+1 (in the banner) |
