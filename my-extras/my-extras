@@ -487,7 +487,7 @@ def prepare(bump, who):
 def public_copy(tag, held, extras):
     """prs without the live-only extras, for the fork's official branch: a worktree of prs in which every merge that
     brought such an extra in is reverted, as one commit. Returns (worktree, sha, report). Refuses when a revert
-    conflicts, or when the copy differs from prs in a file the left-out extras do not own."""
+    conflicts, or when the copy differs from prs in a file those merges did not change."""
     names = dict((e["id"], ename(e)) for e in extras)
     others = set()
     for e in in_kit(extras):
@@ -496,11 +496,11 @@ def public_copy(tag, held, extras):
     own, files = set(), set()
     for i in held:
         own |= set(patch_id(c) for c in git("rev-list", "--no-merges", UP + "..extra/" + i).splitlines()) - others
-        files |= set(extra_files(i))
     merges = []
     for m in git("rev-list", "--first-parent", "--merges", UP + "..prs").splitlines():   # newest first
         if any(patch_id(c) in own for c in git("rev-list", "--no-merges", "%s^1..%s^2" % (m, m)).splitlines()):
             merges.append(m)
+            files |= set(f for f in git("diff", "--name-only", m + "^1", m).splitlines() if f)   # what that merge changed, its own resolution included
     who = ", ".join(names[i] for i in held)
     if not merges:
         raise SystemExit("release refused: prs holds %s (live only) but no merge on prs brought it in; it cannot be left out by itself." % who)
@@ -519,7 +519,7 @@ def public_copy(tag, held, extras):
     diff = [f for f in git("diff", "--name-only", "prs", sha).splitlines() if f]
     foreign = [f for f in diff if f not in files]
     if foreign:
-        stop("release refused: the copy without %s differs from prs in files that extra does not own: %s" % (who, ", ".join(foreign[:6])))
+        stop("release refused: the copy without %s differs from prs in files its merge did not change: %s" % (who, ", ".join(foreign[:6])))
     return wt, sha, "publish prs without %s (live only): %d merge%s reverted on a copy, %d file%s from prs" % (
         who, len(merges), "" if len(merges) == 1 else "s", len(diff), " differs" if len(diff) == 1 else "s differ")
 
