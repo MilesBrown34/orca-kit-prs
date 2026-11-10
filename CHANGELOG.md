@@ -4,6 +4,9 @@ Newest first.
 
 ## Unreleased
 
+- **Fixed: a builder's start no longer carries the board's history.** (PRS 2026-10-26)
+- **Changed: closed rows leave the board at every seat start.** (PRS 2026-10-26)
+- **Added: a `builds on` line in the brief template.** (PRS 2026-10-26)
 - **Changed: the falsify skill has a "Before a result counts" checklist** (PRS 2026-10-29)
 - **New: the git guard refuses a force-push, a commit after `;`, and a soft reset onto a remote branch.** (PRS 2026-10-29)
 - **New: rules by path, and a project review checklist.** (PRS 2026-10-24)

@@ -11,6 +11,7 @@
 | model / effort | `opus[1m]` · `sonnet[1m]` · `haiku` (orchestrate skill, "Model per lane") · `--effort <level>` or default |
 | base branch | `origin/main` or `origin/<train-branch>` @ `<sha>` |
 | branch / worktree | `<prefix>/<row-lowercase>` in its own worktree |
+| builds on | earlier rows this one depends on, each with where to read it (`docs/orchestration/briefs/<ROW>.md`, merge `<sha>`), or `none`. The builder's start carries no board history, so a row named nowhere here is a row the builder never sees |
 
 ## Goal
 
