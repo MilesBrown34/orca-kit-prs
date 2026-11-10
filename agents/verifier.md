@@ -42,6 +42,7 @@ You verify one unit of work against its stated requirements, with **no** access 
    - **Mirror assertions:** an expectation re-derived with the same helpers/expression as the implementation passes when both share a wrong formula. Require a hand-derived literal or an independent derivation.
    - **Order/state-insensitive fixtures:** a guard whose fixture cannot exercise the defect (nothing clamps, full HP, no interaction) stays green while ratifying the wrong behavior. Ask: what concrete input makes this fail?
    - **Coverage claims are claims.** A test-file header stating what is covered gets the same scrutiny as an assertion — a file that overstates its own coverage is worse than a missing test, because the next reader stops looking.
+   - **A stub or fake is checked against the platform's documented contract.** Cite the doc line it follows; each documented behaviour the stub skips needs its own check, or the tests pass against a platform that does not exist.
 4. **Blast radius** — on DEVIATES/BROKEN only: `git diff` → changed exported symbols → grep their consumers across the repo AND sibling worktrees (`.claude/worktrees/agent-*` or `git worktree list`); list downstream files/worktrees that consumed the suspect interface and must be re-verified before building further.
 
 ## Delta re-verification (after a fix-roundtrip)
