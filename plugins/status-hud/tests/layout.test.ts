@@ -44,6 +44,17 @@ test('variant C: about 60 columns, lines fit, every session row is a press targe
   for (const w of [30, 44, 80]) for (const l of drawPane(view(), w)) expect(widthOf(l)).toBeLessThanOrEqual(w)
 })
 
+test('pane icon: the setting picks the koi or the helmet sprite', () => {
+  const head = (icon: 'koi' | 'helmet'): string =>
+    drawPane(view({ cfg: parseConfig({ quietModeOnCmd: 'a', quietModeOffCmd: 'b', paneIcon: icon }, '/h') }), 60).slice(0, 6).map(lineText).join('\n')
+  expect(parseConfig({}, '/h').paneIcon).toBe('koi')
+  expect(parseConfig({ paneIcon: 'nonsense' }, '/h').paneIcon).toBe('koi')
+  expect(parseConfig({ paneIcon: 'helmet' }, '/h').paneIcon).toBe('helmet')
+  expect(head('koi')).not.toBe(head('helmet'))
+  expect(head('koi')).toContain('STATUS HUD')
+  expect(head('helmet')).toContain('STATUS HUD')
+})
+
 test('thresholds color the session row: green, amber, red', async () => {
   const col = (k: number): string => sessionRow(view(), S('X', k), 70).runs(0).find(r => r.text.includes('K'))?.fg ?? ''
   const [g, a, r] = [col(100), col(310), col(360)]

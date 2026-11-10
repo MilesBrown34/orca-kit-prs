@@ -18,6 +18,16 @@
         "off"
       ]
     },
+    "paneIcon": {
+      "type": "string",
+      "title": "Pane icon",
+      "description": "The picture at the top of the pane: koi (a white koi with red patches) or helmet (the horned helmet).",
+      "default": "koi",
+      "options": [
+        "koi",
+        "helmet"
+      ]
+    },
     "contextAmberMark": {
       "type": "number",
       "title": "Context amber mark (tokens)",

@@ -4,6 +4,8 @@ import { type App, parseApps } from './apps'
 
 export type Config = {
   variant: 'band' | 'pane' | 'off'
+  /** The sprite at the top of the pane. */
+  paneIcon: 'koi' | 'helmet'
   amberMark: number
   reportMark: number
   flashMs: number
@@ -53,6 +55,7 @@ export function parseConfig(o: PluginOptions, home: string): Config {
   const dir = str(o.statusDir).trim()
   return {
     variant: variant === 'pane' || variant === 'off' ? variant : 'band',
+    paneIcon: str(o.paneIcon, 'koi') === 'helmet' ? 'helmet' : 'koi',
     amberMark: num(o.contextAmberMark, 300_000),
     reportMark: num(o.contextReportMark, 350_000),
     flashMs: num(o.flashSeconds, 6) * 1000,
