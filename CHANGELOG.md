@@ -4,6 +4,10 @@ Newest first.
 
 ## Unreleased
 
+- **New, status HUD: project dots.** (PRS 2026-10-14)
+- **New, status HUD: item switches.** (PRS 2026-10-14)
+- **New, status HUD: a setup page.** (PRS 2026-10-14)
+- **Changed, status HUD: alerts apart from information.** (PRS 2026-10-14)
 - **Fixed: a builder's start no longer carries the board's history.** (PRS 2026-10-26)
 - **Changed: closed rows leave the board at every seat start.** (PRS 2026-10-26)
 - **Added: a `builds on` line in the brief template.** (PRS 2026-10-26)
