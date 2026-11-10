@@ -55,6 +55,8 @@ Each piece has the same three parts.
 
 ### Briefs and the lean start
 
+Conventions that bind only some files live in `.claude/rules/<area>.md` with a `paths:` list: Claude Code loads one only when a session touches a matching file, the brief names the ones in force for its fence, and the verifier reads them at the base. The always-loaded CLAUDE.md keeps only the rules that bind everywhere.
+
 **What it does:** The seat writes a row's contract to `docs/orchestration/briefs/<ROW>.md` (from `templates/briefs/_TEMPLATE.md`) and pushes it before assigning. The builder runs `/orchestration-kit:orient-brief <ROW>`: it loads only that brief and the board banner, then sends one READY line to the seat.
 
 **Why it exists:** A chat summary decays, and a full orientation spends a context window before any work. A brief is the same contract for the builder and for the validator who reads it later.

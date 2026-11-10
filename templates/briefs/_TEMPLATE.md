@@ -27,6 +27,9 @@ rests on (the human or the seat, with the date).
 
 Files the row may touch (globs ok). Everything else is out of fence: stop and message the seat.
 
+Rules in force: `.claude/rules/<file>.md` … (from ORCHESTRATION.md → Change classes, the row's paths), or
+"none". The verifier reads them, and ORCHESTRATION.md → Review checklist, at `origin/main`.
+
 ## Seam map (file:line, as measured at the base sha — verify upward)
 
 - `path/to/file:123` — what lives there and why it matters

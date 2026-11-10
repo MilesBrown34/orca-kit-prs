@@ -4,6 +4,7 @@ Newest first.
 
 ## Unreleased
 
+- **New: rules by path, and a project review checklist.** (PRS 2026-10-24)
 - **Changed: the verifier checks a stub against the platform's documented contract.** (PRS 2026-10-29)
 - **Changed: the verifier reads its contract at the base.** (PRS 2026-10-24)
 - **Changed: the seat audits worktrees before assigning, a redo round starts beside the owner's reference, and briefs say how to run the gate.** (PRS 2026-10-29)
