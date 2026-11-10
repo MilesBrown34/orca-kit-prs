@@ -65,11 +65,15 @@ q reset --hard HEAD~1
 echo more > "$K/my-extras/x"; q commit -am "tracking 2"
 out="$("$X" check)"; rc_is "check: tracking-only commit is fine" 0 $?
 
+# --- his new commit under the same version number: red, and it says how many changes
+echo "# note" >> "$H/NOTES.md"; git -C "$H" add NOTES.md; git -C "$H" commit -qm "same version, one more commit"; q fetch -q upstream
+out="$("$X" header)"; has "header: same version, new commits named" "▲ current 1.0 + 1 new change (news)" "$out"; has "header: same version, new commits in red" "$(printf '\033[1;31m▲')" "$out"; hasnt "header: same version with new commits is not green" "✓" "$out"
+
 # --- his new release: marker, news, refit only for the extra whose files he changed
 ver "$H" 1.1; echo "his launcher change" >> "$H/scripts/launch.sh"; printf '# Changelog\n\n## 1.1\n- **New: faster launch.**\n\n## 1.0\n' > "$H/CHANGELOG.md"
 git -C "$H" commit -qam "1.1"; q fetch -q upstream
 out="$("$X" header)"; has "header: newer version marked" "▲ current 1.1 (news)" "$out"; hasnt "header: not green when behind" "✓" "$out"; has "header: still on 1.0" "Orca-kit 1.0" "$out"
-has "header: update in yellow" "$(printf '\033[1;33m▲')" "$out"; hasnt "header: NO_COLOR is plain" "$(printf '\033[')" "$(NO_COLOR=1 "$X" header)"
+has "header: his newer kit in red" "$(printf '\033[1;31m▲')" "$out"; hasnt "header: his newer kit is not yellow" "$(printf '\033[1;33m▲')" "$out"; hasnt "header: NO_COLOR is plain" "$(printf '\033[')" "$(NO_COLOR=1 "$X" header)"
 out="$("$X" news)"; has "news: versions" "His latest: 1.1" "$out"; has "news: changelog heading" "New: faster launch." "$out"
 has "news: overlapping extra needs refit" "Tabs needs a refit (he changed scripts/launch.sh)" "$out"; has "news: other extra fine" "Dots: not affected" "$out"
 out="$("$X" status)"; has "status: refit flag" "Only mine, needs refit" "$out"

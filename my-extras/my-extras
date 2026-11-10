@@ -7,7 +7,8 @@ merged extras plus this folder (my-extras/), and is the installed plugin. MY-EXT
 lists the extras; this script keeps its table true.
 
 Usage: my-extras <command>
-  header   one line for the start word's menu: kit version, extras, ▲ when upstream has news,
+  header   one line for the start word's menu: kit version, extras, his current version in red with ▲ when
+           upstream has a newer version or new commits (green ✓ when there is nothing to take),
            ⚠ when prs holds a change no extra owns. Fetches upstream at most once a day (2 s limit).
   news     what upstream changed since prs was built, and which extras need a refit
   status   the table, with live refit flags
@@ -32,7 +33,7 @@ Usage: my-extras <command>
            and no tag: read the pages on prs first, then release.
 Env: MY_EXTRAS_REPO (default: this script's repo), MY_EXTRAS_UPSTREAM (default upstream/main),
      MY_EXTRAS_ORIGIN (default origin: the fork), MY_EXTRAS_OFFICIAL (default main),
-     MY_EXTRAS_NO_NET=1 (never fetch or call gh; tests), MY_EXTRAS_GH_REPO (default Artekka/claude-orchestration-kit).
+     MY_EXTRAS_NO_NET=1 (never fetch or call gh; tests), MY_EXTRAS_GH_REPO (default Artekka/orcastration-kit).
 """
 import json, os, re, subprocess, sys, time
 
@@ -40,7 +41,7 @@ HERE = os.path.dirname(os.path.realpath(__file__))
 REPO = os.environ.get("MY_EXTRAS_REPO") or os.path.dirname(HERE)
 UP = os.environ.get("MY_EXTRAS_UPSTREAM", "upstream/main")
 NO_NET = os.environ.get("MY_EXTRAS_NO_NET") == "1"
-GH_REPO = os.environ.get("MY_EXTRAS_GH_REPO", "Artekka/claude-orchestration-kit")
+GH_REPO = os.environ.get("MY_EXTRAS_GH_REPO", "Artekka/orcastration-kit")
 ORIGIN = os.environ.get("MY_EXTRAS_ORIGIN", "origin")
 OFFICIAL = os.environ.get("MY_EXTRAS_OFFICIAL", "main")
 GATE = os.environ.get("MY_EXTRAS_GATE", "bash tests/run.sh")
@@ -602,8 +603,13 @@ def listed(extras):
 
 
 def warn(text):
-    """Bold yellow, so a waiting update stands out in the menu; plain when NO_COLOR is set."""
+    """Bold yellow, for an unlisted change on prs; plain when NO_COLOR is set."""
     return text if os.environ.get("NO_COLOR") else "\033[1;33m%s\033[0m" % text
+
+
+def bad(text):
+    """Bold red: his kit has something this one lacks (a newer version or new commits); plain when NO_COLOR is set."""
+    return text if os.environ.get("NO_COLOR") else "\033[1;31m%s\033[0m" % text
 
 
 def good(text):
@@ -618,9 +624,11 @@ def cmd_header():
     mine = version(base())
     line = "Orca-kit %s + %d extra%s   /   " % (mine, n, "" if n == 1 else "s")
     ahead = int(git("rev-list", "--count", "prs.." + UP) or 0)
-    if ahead:
-        nv = version(UP)
-        line += warn("▲ current %s (news)" % nv if nv != mine else "▲ current %s + new changes (news)" % nv)
+    nv = version(UP)
+    if ahead and nv == mine:
+        line += bad("▲ current %s + %d new change%s (news)" % (nv, ahead, "" if ahead == 1 else "s"))
+    elif ahead or nv != mine:
+        line += bad("▲ current %s (news)" % nv)
     else:
         line += good("current %s ✓" % mine)
     stray = stray_commits()
