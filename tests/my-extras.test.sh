@@ -155,7 +155,9 @@ echo stray2 >> "$K/hud.ts"; q commit -qam "stray on prs"
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: refused with an unlisted change" 1 $?; has "release: names it" "stray on prs" "$out"
 q reset -q --hard HEAD~1
 sed -i '/^- merge notes: keep the old key row$/a - live only: yes' "$K/MY-EXTRAS.md"   # dots is merged into prs
-out="$("$X" release --dry-run 2>&1)"; rc_is "release: refused while prs holds a live-only extra" 1 $?; has "release: names it" "prs holds dots, marked" "$out"
+out="$("$X" release --dry-run 2>&1)"; rc_is "release: a live-only extra on prs is left out, not refused" 0 $?; has "release: says what it leaves out" "publish prs without Dots (live only): 1 merge reverted on a copy, 1 file differs from prs" "$out"
+has "release: the copy is what gets tagged and published" "overwrite origin/main with that copy" "$out"; hasnt "release: a live-only extra is not in the notes" "**Dots**" "$out"; has "release: notes count without it" "plus 1 extra" "$out"
+[ ! -e "$K/.worktrees/release-public" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL release: the dry run left its copy behind"; }
 sed -i 's/^- live only: yes$/- live only: no/' "$K/MY-EXTRAS.md"
 out="$("$X" release --dry-run 2>&1)"; hasnt "release: live only: no is not held" "live only" "$out"
 sed -i '/^- live only: no$/d' "$K/MY-EXTRAS.md"
@@ -210,6 +212,20 @@ out="$("$X" release --major --dry-run 2>&1)"; rc_is "release: --major dry run" 0
 git -C "$K" tag -a v1.1.1 -m "his tag, not ours" prs
 out="$("$X" release --dry-run 2>&1)"; rc_is "release: a foreign tag with the next name stops it" 1 $?; has "release: names the clash" "v1.1.1 already exists" "$out"
 git -C "$K" tag -d v1.1.1 >/dev/null
+# --- a live-only extra stays on prs and never reaches the official branch: the release publishes a copy without it
+sed -i '/^- what: tab colors$/a - live only: yes' "$K/MY-EXTRAS.md"
+echo more6 > "$K/my-extras/x"; q commit -qam "tracking 6"
+out="$("$X" release 2>&1)"; rc_is "release: with a live-only extra" 0 $?; has "release: says the copy went out" "is now prs without the live-only extras" "$out"
+has "live only: prs keeps it" "tab colors" "$(git -C "$K" show prs:scripts/launch.sh)"; [ -f "$K/scripts/tabs-steady" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL live only: prs lost the extra's file"; }
+hasnt "live only: the official branch lacks it" "tab colors" "$(git -C "$R" show main:scripts/launch.sh)"
+git -C "$R" cat-file -e main:scripts/tabs-steady 2>/dev/null && { fail=$((fail+1)); echo "FAIL live only: the extra's file reached the official branch"; } || pass=$((pass+1))
+lt="$(git -C "$K" tag -l 'v*' --sort=-v:refname | head -1)"
+[ "$(git -C "$R" rev-parse main)" = "$(git -C "$R" rev-parse "$lt^{commit}")" ] && [ "$(git -C "$R" rev-parse main)" != "$(git -C "$K" rev-parse prs)" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL live only: the tag and the official branch are not the copy"; }
+hasnt "live only: not on the public extras page" "Tabs" "$(git -C "$R" show main:EXTRAS.md)"
+[ ! -e "$K/.worktrees/release-public" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL live only: the release left its copy behind"; }
+out="$("$X" release 2>&1)"; rc_is "live only: the same prs twice is refused" 1 $?; has "live only: says already released" "already released as $lt" "$out"
+MY_EXTRAS_GATE='grep -q "tab colors" scripts/launch.sh' "$X" release --dry-run >/dev/null 2>&1; echo more7 > "$K/my-extras/x"; q commit -qam "tracking 7"
+out="$(MY_EXTRAS_GATE='grep -q "tab colors" scripts/launch.sh' "$X" release 2>&1)"; rc_is "live only: the gate runs on the copy, not on prs" 1 $?; has "live only: gate red on the copy" "gate is red" "$out"
 unset MY_EXTRAS_GATE
 
 # --- the real kit folder: prs holds nothing that belongs to no extra

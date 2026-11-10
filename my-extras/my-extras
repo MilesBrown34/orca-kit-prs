@@ -18,6 +18,9 @@ Usage: my-extras <command>
   release [--dry-run] [--minor|--major]   package prs as the official version a visitor downloads: refuses
            while upstream has new commits (update first), the tree is dirty, prs holds an unlisted change,
            prs is already released, or the gate (MY_EXTRAS_GATE, default `bash tests/run.sh`) is red; then
+           (an extra marked `live only: yes` in its Details stays on prs and is left out: the release reverts
+           its merge on a copy of prs, runs the gate on that copy, and tags and publishes the copy; it
+           refuses when the extra cannot be taken out cleanly)
            tags prs with the kit's own version (v1.0.0 first; the last number bumps unless --minor/--major;
            Artekka's version goes in the title and notes), pushes prs,
            overwrites the fork's official branch (MY_EXTRAS_OFFICIAL, default main, with --force-with-lease),
@@ -183,9 +186,10 @@ def release_tags():
 
 
 def release_due():
-    """True until the newest release tag sits exactly at prs."""
+    """True until the newest release tag holds prs: it sits exactly at prs, or at the public copy built from it
+    (prs plus the commit that leaves the live-only extras out)."""
     tags = release_tags()
-    return (not tags) or git("rev-parse", tags[0] + "^{commit}") != git("rev-parse", "prs")
+    return (not tags) or subprocess.run(["git", "-C", REPO, "merge-base", "--is-ancestor", "prs", tags[0] + "^{commit}"]).returncode != 0
 
 
 def next_release_tag(bump="patch"):
@@ -460,13 +464,10 @@ def prepare(bump, who):
         raise SystemExit("%s refused: a tag %s already exists on this repository (Artekka's?). Pick --minor or --major, or rename." % (who, tag))
     extras, _ = read_page()
     check_fields(extras)
-    marked = [e["id"] for e in extras if e.get("live only", "").lower().startswith("yes")
+    marked = [e["id"] for e in extras if live_only(e)
               and git("rev-parse", "--verify", "-q", "extra/" + e["id"], check=False)]
     on_prs = patch_ids_in("prs") if marked else set()   # by content: a refitted or amended copy still counts
     held = [i for i in marked if any(patch_id(c) in on_prs for c in git("rev-list", "--no-merges", UP + "..extra/" + i).splitlines())]
-    if held:
-        raise SystemExit("%s refused: prs holds %s, marked `live only: yes` (it must never reach the fork's main). "
-                         "A release that leaves it out is not built yet: ask Claude to build that, or take it off prs first." % (who, ", ".join(held)))
     prev = release_tags()[0] if release_tags() else ""
     rows = release_rows(tag, prev, extras)
     notes = release_notes(tag, extras, rows)
@@ -480,18 +481,58 @@ def prepare(bump, who):
     if scan.returncode != 0:
         os.unlink(nf.name)
         raise SystemExit("%s refused: the release notes or the public extras list hold a private word (fix the extra's description in MY-EXTRAS.md):\n" % who + scan.stdout.strip())
-    return tag, prev, extras, rows, nf.name
+    return tag, prev, extras, rows, nf.name, held
+
+
+def public_copy(tag, held, extras):
+    """prs without the live-only extras, for the fork's official branch: a worktree of prs in which every merge that
+    brought such an extra in is reverted, as one commit. Returns (worktree, sha, report). Refuses when a revert
+    conflicts, or when the copy differs from prs in a file the left-out extras do not own."""
+    names = dict((e["id"], ename(e)) for e in extras)
+    others = set()
+    for e in in_kit(extras):
+        if e["id"] not in held and git("rev-parse", "--verify", "-q", "extra/" + e["id"], check=False):
+            others |= set(patch_id(c) for c in git("rev-list", "--no-merges", UP + "..extra/" + e["id"]).splitlines())
+    own, files = set(), set()
+    for i in held:
+        own |= set(patch_id(c) for c in git("rev-list", "--no-merges", UP + "..extra/" + i).splitlines()) - others
+        files |= set(extra_files(i))
+    merges = []
+    for m in git("rev-list", "--first-parent", "--merges", UP + "..prs").splitlines():   # newest first
+        if any(patch_id(c) in own for c in git("rev-list", "--no-merges", "%s^1..%s^2" % (m, m)).splitlines()):
+            merges.append(m)
+    who = ", ".join(names[i] for i in held)
+    if not merges:
+        raise SystemExit("release refused: prs holds %s (live only) but no merge on prs brought it in; it cannot be left out by itself." % who)
+    wt = os.path.join(REPO, ".worktrees", "release-public")
+    git("worktree", "remove", "--force", wt, check=False)
+    git("worktree", "add", "-q", "--detach", wt, "prs")
+    def stop(msg):
+        git("worktree", "remove", "--force", wt, check=False)
+        raise SystemExit(msg)
+    for m in merges:
+        r = subprocess.run(["git", "-C", wt, "revert", "-m", "1", "--no-commit", m], capture_output=True, text=True)
+        if r.returncode != 0:
+            stop("release refused: leaving out %s conflicts with a later change on prs (reverting merge %s). Ask Claude to resolve it." % (who, m[:7]))
+    subprocess.run(["git", "-C", wt, "commit", "-q", "-m", "release %s: without %s (live only, never on %s)" % (tag, who, OFFICIAL)], check=True)
+    sha = subprocess.run(["git", "-C", wt, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    diff = [f for f in git("diff", "--name-only", "prs", sha).splitlines() if f]
+    foreign = [f for f in diff if f not in files]
+    if foreign:
+        stop("release refused: the copy without %s differs from prs in files that extra does not own: %s" % (who, ", ".join(foreign[:6])))
+    return wt, sha, "publish prs without %s (live only): %d merge%s reverted on a copy, %d file%s from prs" % (
+        who, len(merges), "" if len(merges) == 1 else "s", len(diff), " differs" if len(diff) == 1 else "s differ")
 
 
 def cmd_preview(bump="patch"):
-    tag, prev, extras, rows, notes = prepare(bump, "preview")
+    tag, prev, extras, rows, notes, _ = prepare(bump, "preview")
     os.unlink(notes)
     print(update_readme(tag, prev, extras, rows, False))
     print("preview: README.md and %s for %s are on prs now; nothing pushed, no tag. Read them, then run release." % (EXTRAS_PAGE, tag))
 
 
 def cmd_release(dry, bump="patch"):
-    tag, prev, extras, rows, notes_path = prepare(bump, "release")
+    tag, prev, extras, rows, notes_path, held = prepare(bump, "release")
     notes = open(notes_path, encoding="utf-8").read()
     sha = git("rev-parse", "--short", "prs")
     repo = fork_repo()
@@ -503,7 +544,13 @@ def cmd_release(dry, bump="patch"):
             "push the tag %s" % tag,
             "make the GitHub Release page %s on %s" % (tag, repo or "(no GitHub origin: skipped)")]
     if dry:
-        print("release (dry run) would, after a green gate `%s`:" % GATE)
+        if held:   # prove now that the live-only extras come out cleanly; the copy is thrown away
+            wt, _, report = public_copy(tag, held, extras)
+            git("worktree", "remove", "--force", wt, check=False)
+            plan.insert(1, report + " (the README step comes first, so the real copy carries it)")
+            plan[2] = "tag that copy as %s" % tag
+            plan[4] = plan[4].replace("with prs", "with that copy")
+        print("release (dry run) would, after a green gate `%s`%s:" % (GATE, " on that copy" if held else ""))
         for p in plan:
             print("  " + p)
         print("Release notes:")
@@ -513,17 +560,26 @@ def cmd_release(dry, bump="patch"):
     print("  " + update_readme(tag, prev, extras, rows, False))
     sha = git("rev-parse", "--short", "prs")
     plan[1] = "tag prs (%s) as %s" % (sha, tag)
-    print("gate: " + GATE)
-    r = subprocess.run(GATE, shell=True, cwd=REPO, capture_output=True, text=True)
+    what, where, wt = "prs", REPO, ""
+    if held:
+        wt, what, report = public_copy(tag, held, extras)
+        where, sha = wt, what[:7]
+        print("  " + report)
+        plan[1] = "tag the copy without the live-only extras (%s) as %s" % (sha, tag)
+        plan[3] = plan[3].replace("with prs", "with that copy")
+    print("gate: " + GATE + (" (on the copy)" if held else ""))
+    r = subprocess.run(GATE, shell=True, cwd=where, capture_output=True, text=True)
+    if wt:
+        git("worktree", "remove", "--force", wt, check=False)
     if r.returncode != 0:
         tail = "\n".join((r.stdout + r.stderr).splitlines()[-12:])
         raise SystemExit("release refused: the gate is red (exit %d). Last lines:\n%s" % (r.returncode, tail))
-    git("tag", "-a", tag, "prs", "-m", "%s Orca-kit %s on Artekka's kit %s, plus the extras listed in %s" % (RELEASE_MARK, tag, version("prs"), EXTRAS_PAGE))
+    git("tag", "-a", tag, what, "-m", "%s Orca-kit %s on Artekka's kit %s, plus the extras listed in %s" % (RELEASE_MARK, tag, version("prs"), EXTRAS_PAGE))
     git("push", ORIGIN, "prs")
     if git("rev-parse", "--verify", "-q", "extra/" + README_EXTRA, check=False):
         git("push", ORIGIN, "extra/" + README_EXTRA)   # the README commits live on that branch: back it up with prs
     lease = "--force-with-lease=%s:%s" % (OFFICIAL, old) if old else "--force-with-lease"
-    git("push", lease, ORIGIN, "prs:refs/heads/" + OFFICIAL)
+    git("push", lease, ORIGIN, what + ":refs/heads/" + OFFICIAL)
     git("push", ORIGIN, "refs/tags/" + tag)
     page = "skipped (no network)" if NO_NET else "skipped (origin is not on GitHub)" if not repo else ""
     if not page:
@@ -535,7 +591,7 @@ def cmd_release(dry, bump="patch"):
     plan[-1] += ": " + page
     for p in plan[1:]:
         print("  done: " + p)
-    print("released %s: %s/%s is now prs at %s." % (tag, ORIGIN, OFFICIAL, sha))
+    print("released %s: %s/%s is now %s at %s." % (tag, ORIGIN, OFFICIAL, "prs without the live-only extras" if held else "prs", sha))
 
 
 def gh_state(pr):
@@ -597,9 +653,14 @@ def in_kit(extras):
     return [e for e in extras if e.get("status") in ("Only mine", "Sent", "Changes asked")]
 
 
+def live_only(e):
+    return e.get("live only", "").lower().startswith("yes")
+
+
 def listed(extras):
-    """The extras a visitor is told about: in the kit, minus the README extra (it describes the list itself)."""
-    return [e for e in in_kit(extras) if e["id"] != README_EXTRA]
+    """The extras a visitor is told about: in the kit, minus the README extra (it describes the list itself)
+    and the live-only ones (never published)."""
+    return [e for e in in_kit(extras) if e["id"] != README_EXTRA and not live_only(e)]
 
 
 def warn(text):
