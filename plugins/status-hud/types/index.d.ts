@@ -37,6 +37,8 @@ export type Host = {
   winApps?: { n: Record<string, number>; at: number } | null
   /** ComfyUI's queue (comfyUrl); null when it does not answer. */
   queue?: { running: number; pending: number } | null
+  /** CPU temperature from cpuTempCmd and when it was read; absent or null when there is none. */
+  cpuTemp?: { c: number; at: number } | null
   hist: { load: number[]; ram: number[]; gpu: number[] }
 }
 

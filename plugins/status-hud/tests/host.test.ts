@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { parseConfig } from '../lib/config'
-import { parseCommit, parseDf, parseGpu, parseLoadavg, parseMeminfo, pushHist, sections } from '../lib/host'
+import { parseCommit, parseCpuTemp, parseDf, parseGpu, parseLoadavg, parseMeminfo, pushHist, sections } from '../lib/host'
 import { refreshHost, HOLD_MAX_MS, HOST_MAX_AGE_MS, LOCK_STALE_MS, hostPath } from '../lib/hostRefresh'
 import { SAMPLE_OUT, fakeIo } from './fakeio'
 
@@ -164,4 +164,56 @@ test('a failed sampler leaves the old reading and frees the lock', async () => {
   expect(r.ran).toBe(false)
   expect(f.locks.size).toBe(0)
   expect(f.files.has(hostPath(cfg))).toBe(false)
+})
+
+test('CPU temperature: one number in °C; junk or out of range is no reading', () => {
+  expect(parseCpuTemp('59\r\n', 5)).toEqual({ c: 59, at: 5 })
+  expect(parseCpuTemp('70.25', 5)?.c).toBe(70.25)
+  expect(parseCpuTemp('', 5)).toBeNull()
+  expect(parseCpuTemp('Get-CimInstance : Invalid namespace', 5)).toBeNull()
+  expect(parseCpuTemp('0', 5)).toBeNull()
+  expect(parseCpuTemp('255', 5)).toBeNull()
+})
+
+test('CPU temperature is spaced by cpuTempSeconds; a failed read keeps the last one for two spans, then drops it', async () => {
+  const tcfg = { ...cfg, cpuTempCmd: 'temp' }
+  let reads = 0
+  let answer = { exitCode: 0, stdout: '59\n' }
+  const f = fakeIo({
+    runs: argv => {
+      if (argv[0] !== 'sh') return undefined
+      if (String(argv[2]).includes('/proc/loadavg')) return { exitCode: 0, stdout: SAMPLE_OUT }
+      if (argv[2] === 'temp') { reads++; return answer }
+      return { exitCode: 0, stdout: '131000000 13100000' }
+    },
+  })
+  const temp = (): unknown => JSON.parse(f.files.get(hostPath(tcfg))?.text ?? '{}').cpuTemp?.c ?? null
+  await refreshHost(f.io, tcfg)
+  expect(temp()).toBe(59)
+  f.setNow(1_000_000 + 10_000)
+  await refreshHost(f.io, tcfg)
+  expect(reads).toBe(1)
+  answer = { exitCode: 1, stdout: '' }
+  f.setNow(1_000_000 + 16_000)
+  await refreshHost(f.io, tcfg)
+  expect(reads).toBe(2)
+  expect(temp()).toBe(59)
+  f.setNow(1_000_000 + 31_000)
+  await refreshHost(f.io, tcfg)
+  expect(temp()).toBeNull()
+})
+
+test('an empty cpuTempCmd never runs and leaves no reading', async () => {
+  let ran = false
+  const f = fakeIo({
+    runs: argv => {
+      if (argv[0] !== 'sh') return undefined
+      if (String(argv[2]).includes('/proc/loadavg')) return { exitCode: 0, stdout: SAMPLE_OUT }
+      if (argv[2] === '') ran = true
+      return { exitCode: 0, stdout: '131000000 13100000' }
+    },
+  })
+  await refreshHost(f.io, { ...cfg, cpuTempCmd: '' })
+  expect(ran).toBe(false)
+  expect(JSON.parse(f.files.get(hostPath(cfg))?.text ?? '{}').cpuTemp).toBeNull()
 })

@@ -83,6 +83,13 @@ export function parseCommit(out: string, at: number): NonNullable<Host['commit']
   return { usedPct: (usedKb / limitKb) * 100, limitGb: limitKb / GB, usedGb: usedKb / GB, at }
 }
 
+/** The CPU temperature command prints one number in °C; anything outside 1–149 is no reading. */
+export function parseCpuTemp(out: string, at: number): NonNullable<Host['cpuTemp']> | null {
+  const m = /-?\d+(\.\d+)?/.exec(out)
+  const c = m ? Number(m[0]) : NaN
+  return c > 0 && c < 150 ? { c, at } : null
+}
+
 export function pushHist(h: number[], v: number, max = 80): number[] {
   const n = [...h, v]
   return n.length > max ? n.slice(n.length - max) : n

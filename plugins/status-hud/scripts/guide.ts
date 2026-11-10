@@ -14,7 +14,7 @@ export const COLS = 180
 export const ITEMS: { id: string; area: string; name: string; what: string; seen: string; when?: string; shows?: 'auto' | 'setting'; turnOn?: string }[] = [
   { id: 'host-title', area: 'Machine', name: 'Machine title', what: 'The heading of the machine box: how many processor threads this computer has.',
     seen: 'All the time, at the top left of the HUD.' },
-  { id: 'cpu', area: 'Machine', name: 'CPU meter', what: 'How busy the processor is: the 1-minute load against the number of threads.',
+  { id: 'cpu', area: 'Machine', name: 'CPU meter', what: 'How busy the processor is: the 1-minute load against the number of threads, and its temperature when one can be read.',
     seen: 'All the time. It turns red when the load nears the thread count (90% of it unless the cpuRedLoad setting says otherwise), which usually means several sessions are running tests or builds at once.' },
   { id: 'history', area: 'Machine', name: 'History graphs', what: 'The small graphs to the right of the CPU, memory and graphics meters: the last few minutes of each reading.',
     seen: 'All the time, as long as the terminal window is wide enough to fit them beside the meters.' },

@@ -2,14 +2,15 @@ import type { Host } from '../types'
 import type { Config } from './config'
 import { type Io, sh } from './io'
 import { countApps, countWindows, parsePs, parseQueue } from './apps'
-import { parseCommit, parseDf, parseGpu, parseHost, parseLoadavg, parseMeminfo, pushHist, sampleScript, sections } from './host'
+import { parseCommit, parseCpuTemp, parseDf, parseGpu, parseHost, parseLoadavg, parseMeminfo, pushHist, sampleScript, sections } from './host'
 
 /** Host readings older than this are re-taken by whichever session notices first. */
 export const HOST_MAX_AGE_MS = 5000
-/** Longest a live writer can hold the lock: the sampler's timeout plus the commit and Windows-programs commands'. */
+/** Longest a live writer can hold the lock: the sampler's timeout plus the commit, Windows-programs and CPU temperature commands'. */
 export const SAMPLER_TIMEOUT_MS = 10_000
 export const COMMIT_TIMEOUT_MS = 15_000
-export const HOLD_MAX_MS = SAMPLER_TIMEOUT_MS + 2 * COMMIT_TIMEOUT_MS
+export const CPU_TEMP_TIMEOUT_MS = 15_000
+export const HOLD_MAX_MS = SAMPLER_TIMEOUT_MS + 2 * COMMIT_TIMEOUT_MS + CPU_TEMP_TIMEOUT_MS
 /** A lock older than this belongs to a dead writer: well past the longest live hold, so a slow writer is never robbed. */
 export const LOCK_STALE_MS = HOLD_MAX_MS * 2 + 10_000
 
@@ -64,6 +65,13 @@ export async function refreshHost(io: Io, c: Config): Promise<{ ran: boolean; ho
     for (const l of countApps(parsePs((s.ps ?? []).join('\n')), c.apps)) apps[l] = (apps[l] ?? 0) + 1
     for (const [l, n] of Object.entries(winApps?.n ?? {})) apps[l] = Math.max(n, apps[l] ?? 0)
     const queue = c.comfyUrl !== '' ? parseQueue((s.queue ?? []).join('\n')) : null
+    // Slow like the commit reading (on WSL it asks Windows), so it is spaced out; a failed read keeps the last one until it is two spans old.
+    let cpuTemp = cur?.cpuTemp ?? null
+    if (c.cpuTempCmd !== '' && (cpuTemp === null || now - cpuTemp.at >= c.cpuTempMs)) {
+      const r = await io.run(sh(c.cpuTempCmd), CPU_TEMP_TIMEOUT_MS)
+      const parsed = r.exitCode === 0 ? parseCpuTemp(r.stdout, now) : null
+      cpuTemp = parsed ?? (cpuTemp && now - cpuTemp.at < c.cpuTempMs * 2 ? cpuTemp : null)
+    }
     const host: Host = {
       at: now,
       threads,
@@ -76,6 +84,7 @@ export async function refreshHost(io: Io, c: Config): Promise<{ ran: boolean; ho
       apps,
       winApps,
       queue,
+      cpuTemp,
       hist: {
         load: pushHist(cur?.hist.load ?? [], load[0]),
         ram: pushHist(cur?.hist.ram ?? [], mem.usedGb),
