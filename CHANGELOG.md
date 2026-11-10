@@ -4,6 +4,9 @@ Newest first.
 
 ## Unreleased
 
+- **New: personal team defaults, asked once per machine.** (PRS 2026-10-14)
+- **New: a sibling name pool.** (PRS 2026-10-14)
+- **New: Windows Terminal tab style on WSL.** (PRS 2026-10-14)
 - **New: permission mode `bypass-available`.** (PRS 2026-10-14)
 - **Fixed: the start word writes `launcher.conf` in place, so a linked settings file stays a link.** (PRS 2026-11-06)
 - **New: your own start word.** (PRS 2026-10-14)
