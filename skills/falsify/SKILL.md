@@ -31,7 +31,9 @@ EOF
 git diff --numstat; git diff | grep '^[-+]' | grep -v '^[-+][-+]'
 
 # 5. RUN + OBSERVE UNFILTERED — read the FAIL names and counts in the raw output.
-<test command> 2>&1 | tail -40     # never grep-only; never infer from the exit code
+<test command> > <evidence dir>/mutant-N.log 2>&1   # the FULL log; same flags, env and mode as the gate
+grep -c '<fail marker>' <evidence dir>/mutant-N.log  # count reds from the whole file, then read them
+#    never score from tail/head, a summary list, or the exit code: a cut hides reds past it
 
 # 6. RESTORE byte-clean + RE-GREEN
 git checkout -- <file> && git diff HEAD --quiet && echo CLEAN
@@ -51,6 +53,22 @@ git checkout -- <file> && git diff HEAD --quiet && echo CLEAN
 | Survivor | Indicts the INSTRUMENT before it exonerates the code: re-check baseline + visibility first. A confirmed survivor is a finding — a hole in the guard |
 | Base already red | Score by SET, not exit: mutant's failing set minus the unmutated base's failing set |
 
+## Before a result counts
+
+A falsify that skips one of these has proved nothing, in either direction:
+
+- [ ] **The diff removes or changes the guarded line.** A diff with only `+` lines leaves the guard running.
+- [ ] **The mutant moved what the check reads.** Log the measured value (or input feature) before and after, next to the verdict. A mutant that moved nothing is no evidence for a pass or a fail.
+- [ ] **The selection was not empty.** A mutant or probe that alters "every item matching X" counts what it picked and aborts on zero.
+- [ ] **The prediction names the guard's own failure line**, the exact message or value the guard emits, and which checks still run after the first failure. A red that arrives through another check is an unclean falsify, not a pass.
+- [ ] **It ran in the gate's mode.** Same flags, environment and mode the gate uses; a quick or default mode the gate never runs can't go red where it matters.
+- [ ] **Two fixes that cover for each other are stacked.** Switch them off in steps from one saved state (A off; A and B off), and predict which step reds which check.
+- [ ] **A green mutant sends you to the second path.** Find the other code that reaches the same result, mutate both, and state what the check proves: at least one path works.
+- [ ] **Stderr stays visible and one target tree is named.** No `2>/dev/null` on anything that edits files; after restore, diff-verify every tree the command could have reached.
+- [ ] **The check was calibrated before it judged anything.** It passed a null edit (no change) and the output already accepted, and failed a known-bad change; a fail without that may be the check's own floor.
+- [ ] **A ranking or similarity metric ordered known pairs.** Every right pair beat every wrong pair (a shifted frame, the other view), with the margin reported, before it ranked candidates.
+- [ ] **A check built for a complaint is red on the rejected output itself,** not only on an invented broken case, and is labelled against the pre-fix code: red there reproduces the complaint; green there makes it a regression guard only.
+
 ## Mutant design
 
 | Mutant | Purpose |
@@ -63,9 +81,13 @@ git checkout -- <file> && git diff HEAD --quiet && echo CLEAN
 | **Decompose, don't replay** — channel × population × layer × site | Replaying the spec's named mutants passes by construction |
 | **Discriminating mutant** — kills the new test, old one stays green | Proves the new test earns its place, not just that it can fail |
 | **Old-guard survival** — run the PRE-fix test against the same mutant | The only proof of a claim that "the old guard was blind" |
+| **One mutant per side and per path** — break the lower and the upper limit separately; one mutant per trigger path (tick, load, equip …) | An inert side or path hides behind the one you broke |
+| **Flip the policy constant once** — change the tuned value and see which pins go red | Finds pins bound to today's scenario instead of the rule |
+| **Paste the guard onto the other kind** — copy it to a different kind of object, nest it away from the use, make it a no-op (`if G: pass`), join it with `and not G` | A guard counts only where it controls the use; each of these must go red |
 
 ## Rules
 
+- **Largest step, hardest case first.** Before a ladder of edits, try the largest step on the hardest real case; small steps first hide the method's ceiling.
 - **Anchor by line or a unique block, never first grep match.** A wrong anchor gives a false survivor; an escaped char gives an unapplied mutant. Print the resolved line.
 - **Probe the fixtures before predicting.** On the unmutated tree, count how many runs reach the mutated line with a non-trivial input; zero reach ⇒ predict SURVIVOR. Keep probes out of the tree (the evidence dir from ORCHESTRATION.md, never `/tmp`) so they can't inflate counts and survive a reboot.
 - **Re-run the battery after adding any default/fallback.** A fixture whose value equals the fallback makes forwarding and defaulting indistinguishable.

@@ -4,6 +4,7 @@ Newest first.
 
 ## Unreleased
 
+- **Changed: the falsify skill has a "Before a result counts" checklist** (PRS 2026-10-29)
 - **New: the git guard refuses a force-push, a commit after `;`, and a soft reset onto a remote branch.** (PRS 2026-10-29)
 - **New: rules by path, and a project review checklist.** (PRS 2026-10-24)
 - **Changed: the verifier checks a stub against the platform's documented contract.** (PRS 2026-10-29)
