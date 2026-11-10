@@ -178,6 +178,8 @@ F5_ALLOW=(
   'never a bare `/clear`'
   'if you (do|must) `/clear`, run `/model'                  # the safe way, model first
   '(^|[.)] +)A bare `/clear`$'                              # that warning wrapped at the line end, only as a sentence start
+  'one that clears a cache'                                 # a lesson about a test's cache, not a session
+  'end clears is cleared by the wrong one'                  # a lesson about an editor's flag
 )
 # f5_left <line>: what is left of the line after the allowed phrases are removed, if it still holds
 # a clear-word (or /reset, /new). Empty output = the line is fine.
