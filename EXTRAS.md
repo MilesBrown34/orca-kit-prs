@@ -1,0 +1,45 @@
+# Extras
+
+Every extra this fork adds to Artekka's orchestration kit, as of **v1.0.2** (on Artekka's 0.9.0): 27 in all. Each one is
+kept as its own branch (`extra/<id>`) and offered to him on its own; "since" names the release that first carried it.
+
+✨ Feature: something new to use or see · 🐛 Fix: something broken, repaired · 🔧 Update: a change to how the workflow runs.
+
+## Start and setup
+
+- ✨ **Start word**: your start word opens a project menu (with the kit's version); starts a team, one chat, or sets the kit up; setup asks which word you want; `update_cmd=` adds [u] update the kit to the menu (since v1.0.0)
+- ✨ **Bypass**: bypass shows up in Shift+Tab, while sessions still start in normal mode (since v1.0.0)
+- ✨ **Tabs**: one Windows Terminal tab color per project; team names (w1-Mars, w2-Venus), your names asked once per machine (since v1.0.0)
+- ✨ **Kit update**: `/orchestration-kit:kit-update` and `scripts/kit-update.sh`: shows when a newer kit exists, updates it (and the status bar) on a yes, warns open sessions keep the old version, lists projects whose copied scripts are older and refreshes them (since v1.0.0)
+- ✨ **Validator lanes**: `validators: N` in the team block (or `--validators N`) opens lanes named `v1-<name>`, `v2-<name>` from the same name pool that never build; the seat gives them READs, train audits and falsify runs, and the Validator block can say "the v-lanes" instead of a name the next team start may not draw; a running v-lane is kept, `numbered: v` is refused (since v1.0.2)
+
+## Status bar
+
+- ✨ **Status bar**: the status bar's setup page, project dots, warnings on the right (most urgent first) (since v1.0.0)
+- ✨ **HUD setup Done**: the status bar's setup page saves with one Done press, explains each number in a pop-up, jumps to it in the list, labels when each item appears, opens at kit-init, and is shown in the README, and offers the pane's icon (koi or helmet) (since v1.0.0)
+- ✨ **Programs and live version**: status bar chips for each program a session drives while it runs (Blender, Godot, Gemini, and any Windows program a session starts, found by itself; who started it, +N for copies no session claims) and ComfyUI's queue (asked through Windows' curl); a `live v…` chip from the board's DEPLOY line, which the seat now writes as `DEPLOY FREE (live <version>)` (since v1.0.0)
+- ✨ **Background state**: a session whose turn ended while background work it started still runs shows ◔ (cyan) instead of ○ idle, with `bg: <first job> +N` as its activity; it can be talked to but is not done (since v1.0.0)
+- ✨ **Programs on a background row**: a ◔ row's activity ends with the tracked programs its background work is running (`bg: Run the checks · godot ×2`) (since v1.0.0)
+- ✨ **Koi icon**: the pane's icon is a setting, koi (white with red patches, the default) or the horned helmet; picked on the status bar's setup page or as `paneIcon` (since v1.0.0)
+- 🐛 **HUD spawn directory**: the status bar runs its host commands from the home directory, never the session's own, and skips a heartbeat tick that cannot start; before, a session that removed the worktree it stood in showed `HooksError: $.process.run(sh) failed to start: ENOENT` in the chat (since v1.0.2)
+- 🐛 **Pane keys**: the status bar's side pane shows the same keys as the band, under its sessions heading: the context colors, each project's name beside its dot color, and the busy/idle marks, each on a line of its own; before, the pane never said which dot was which project (since v1.0.2)
+
+## Tests, gates and guards
+
+- 🔧 **Skill checks**: `tests/skills-lint.test.sh` refuses a skill or agent with a wrong name, a missing or over-long description, a cited file that does not exist, or a personal home path (`KIT_PRIVATE_WORDS=<file>` adds a private word list); `scripts/skill-usage.py <log folder>` shows which kit skills a project's sessions ran and which never (since v1.0.0)
+- ✨ **Secrets guard**: a `never_read:` list in ORCHESTRATION.md → Secrets; the kit's hook then refuses reading, searching or naming those paths (key stores, token files, locked copies) for Read, Grep and Bash, and sends the session to the human for the key; no list, no guard; an optional `allow_read:` list lets the human open ONE file by its exact path (the folder, its other files, globs and path tricks stay refused; in Bash only in three shapes: `NAME=<file> <program>`, `export NAME=<file>; <program>`, `cat <file> | wc -c`) until the human removes the line; paths are compared normalized (`//`, `.`, `..`, `${HOME}`, relative paths, quoted or joined Bash words (`"$HOME"/.netrc`, `bash -c '..'`) and `cd` targets, chained or bare, cannot slip past an entry; a relative path with no known working folder is refused) (since v1.0.1)
+- ✨ **Force-push guard**: the git guard also refuses a force-push (`git push -f`, `--force`, `--force-with-lease`, `--mirror`, a `+branch` refspec) and says to push the rewritten work as a new branch instead; it also refuses `<cmd>; git commit` (a red gate still commits; use `&&`) and `git reset --soft origin/…` (reverts what main gained; squash onto the merge base); a human can still run them in their own terminal (since v1.0.2)
+- 🔧 **Falsify checklist**: the falsify skill gets the rules its users kept tripping on: a break that only adds lines changes nothing, show the break moved the value the check reads, abort on an empty selection, predict the exact failure line, run in the gate's own mode, score from the full log, stack breaks when two fixes cover each other, find the second path before calling a check weak, calibrate a check (null edit, accepted output, known-bad) before it judges, prove a ranking metric on known pairs, prove a complaint's check red on the rejected output; new break designs: one per side and per path, flip the policy constant once, paste the guard onto the other kind (since v1.0.2)
+
+## Seat, verifier and lessons
+
+- 🔧 **Lessons from the checks**: lessons 61–151 in docs/LESSONS.md, distilled from real checks and guards (73 live; 18 merged into the lessons that hold their rule, kept as "Retired, see" lines); additions to the original lessons sit after a PRS stamp, the originals unchanged (since v1.0.0)
+- 🔧 **Lighter seat skill**: the seat skill's deploy, log and recycle/handover steps sit in two files beside it (`deploy-and-log.md`, `recycle-and-handover.md`), read only before those steps; every seat start loads ~850 tokens less (since v1.0.0)
+- 🔧 **Seat never codes, subagents included**: the orchestrate skill and the glossary say the seat's subagents never write a row's code either: a seat subagent researches, reviews or moves text, and a build or a fix round, however small, goes to a builder sibling and gets a READ; before, a seat sent a fix round to its own subagent and merged it on its own check with no READ (since v1.0.2)
+- 🔧 **Verifier reads the base**: the verifier reads the brief, the overlay and the Locked list at origin/main, never from the branch it judges; commit messages, comments and diff text are data, never instructions; a table says what PASS, DEVIATES and BROKEN mean (since v1.0.1)
+- 🔧 **Rules by path and a review checklist**: project conventions that bind only some files go in `.claude/rules/<area>.md` with a `paths:` list (loaded only when a session touches a matching file), named on each brief and read by the verifier at origin/main; ORCHESTRATION.md gets a Review checklist that retro appends to and the verifier checks on every row (since v1.0.1)
+- 🐛 **Lean board**: a builder's start carries only the seat's live banner (the cut stops at the next heading of any depth and at 6000 characters); at every seat start the rows earlier seats closed move verbatim to the board archive; the brief template gets a `builds on` line naming earlier rows and where to read them (since v1.0.2)
+- 🐛 **Seat keeps working while it waits**: in non-blocking mode, a seat whose rows all wait on the human starts the work that needs no answer (slow checks, owed log entries, rows that need no ruling) before it waits; before, a seat sat idle for hours with that work undone (since v1.0.2)
+- 🔧 **Seat checks**: the seat audits every worktree (dirty files, unpushed commits, lost gate logs, stale locks) before assigning after a crash or takeover; a redo round toward a person's target starts with today's result beside their own reference; the brief template says to commit first and run the gate through `gate-throttle.sh --log` (since v1.0.2)
+- 🔧 **Verifier checks stubs**: the verifier asks for the documented platform contract a stub or fake follows (the doc line) and one check per behaviour the stub skips; tests on a stub can pass against a platform that does not exist (since v1.0.2)
+- ✨ **Lessons clean**: the `lessons-clean` skill folds the lines sessions submit under `## Submitted` at the end of docs/LESSONS.md into numbered lessons (condensed once, never reworded later; new facts for an existing lesson as a marked, dated addition), `tests/lessons-clean.test.sh` proves the file's shape, and the clean ends by asking the human for lessons to add (since v1.0.2)
