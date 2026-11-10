@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# push-check — the private-word gate every push from this folder goes through (branch `prs` only, never sent).
+#
+# The kit is public: nothing personal (project names, folders, the start word PRS picked) may leave this
+# machine. The words live OUTSIDE the kit, one extended regex per line, # = comment
+# (MY_EXTRAS_WORDS, default ~/.orchestration-kit/personal-words). This script never prints the list.
+#
+# Usage: my-extras/push-check install            write .git/hooks/pre-push (shared by every worktree) so git
+#                                                runs this before EVERY push; prints the hook path
+#        my-extras/push-check tree <ref>...      scan the whole tree at each ref (what a visitor would download)
+#        my-extras/push-check diff <a> <b>       scan the lines <b> adds since <a>, and the commit messages
+#        my-extras/push-check hook <remote> <url> what git calls (refs on stdin): for each pushed branch or tag,
+#                                                the tree at its tip plus the message and added lines of every
+#                                                commit that remote does not hold yet (history it already has passes)
+# Exit 0 = clean, 1 = REFUSED (hits shown as ref:file:line or sha: line, first few only), 64 = usage or no word list.
+# Env: MY_EXTRAS_REPO (default this script's repo), MY_EXTRAS_WORDS (see above).
+set -uo pipefail
+REPO="${MY_EXTRAS_REPO:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+WORDS="${MY_EXTRAS_WORDS:-$HOME/.orchestration-kit/personal-words}"
+cmd="${1:-}"; shift || true
+g() { git -C "$REPO" "$@"; }
+usage() { sed -n '8,15p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 64; }
+
+if [ "$cmd" = install ]; then
+  hooks="$(g rev-parse --git-path hooks)"; case "$hooks" in /*) ;; *) hooks="$REPO/$hooks" ;; esac
+  mkdir -p "$hooks"
+  cat >"$hooks/pre-push" <<'HOOK'
+#!/usr/bin/env bash
+# Installed by my-extras/push-check install: refuses a push that carries a private word. Works from every
+# worktree of this repo (the script lives in the main checkout, found through the shared git dir).
+common="$(git rev-parse --git-common-dir)"; case "$common" in /*) ;; *) common="$PWD/$common" ;; esac
+main="$(cd "$common/.." && pwd)"
+if [ -x "$main/my-extras/push-check" ]; then exec "$main/my-extras/push-check" hook "$@"; fi
+# the checked-out branch has no my-extras (an extra branch): run the copy that branch prs holds
+tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
+git --git-dir="$common" show prs:my-extras/push-check >"$tmp" 2>/dev/null && [ -s "$tmp" ] \
+  || { echo "pre-push: my-extras/push-check is missing here and on prs; push refused" >&2; exit 1; }
+MY_EXTRAS_REPO="$main" bash "$tmp" hook "$@"
+HOOK
+  chmod +x "$hooks/pre-push"
+  echo "installed $hooks/pre-push"
+  exit 0
+fi
+case "$cmd" in tree|diff|hook) ;; *) usage ;; esac
+
+[ -r "$WORDS" ] || { echo "REFUSED: no private word list at $WORDS (one pattern per line): cannot check for personal names"; exit 64; }
+PAT="$(mktemp)"
+grep -v '^[[:space:]]*\(#\|$\)' "$WORDS" >"$PAT"
+[ -s "$PAT" ] || { echo "REFUSED: the private word list at $WORDS is empty"; exit 64; }
+HITS="$(mktemp)"; trap 'rm -f "$PAT" "$HITS"' EXIT
+MAX=8
+scan_tree() {   # every file at a ref
+  g grep -n -i -E -f "$PAT" "$1" -- . 2>/dev/null >>"$HITS"
+}
+scan_commits() {   # "$@" = a rev-list range or list: each commit's whole message and the lines it adds
+  g log -p --format='commit %h%n%B' --no-color "$@" 2>/dev/null \
+    | awk '/^commit [0-9a-f]+$/{c=$2; msg=1; next} /^diff --git /{msg=0; next}
+           msg{print c ": " $0; next} /^\+\+\+ /{next} /^\+/{print c ": " substr($0, 2)}' \
+    | grep -i -E -f "$PAT" >>"$HITS"
+}
+zero=0000000000000000000000000000000000000000
+case "$cmd" in
+  tree) [ $# -ge 1 ] || usage; for r in "$@"; do scan_tree "$r"; done ;;
+  diff) [ $# -eq 2 ] || usage; scan_commits "$1..$2" ;;
+  hook)
+    remote="${1:-origin}"
+    while read -r lref lsha rref rsha; do
+      [ -n "${lsha:-}" ] && [ "$lsha" != "$zero" ] || continue    # a branch delete carries nothing
+      scan_tree "$lsha"
+      scan_commits "$lsha" --not --remotes="$remote"    # every commit the remote does not hold yet, on any branch
+    done ;;
+esac
+hits="$(grep -c . "$HITS")"
+if [ "$hits" -gt 0 ]; then
+  head -n "$MAX" "$HITS" | cut -c1-160 | sed 's/^/  /'
+  [ "$hits" -gt "$MAX" ] && echo "  ... and $((hits-MAX)) more"
+  echo "REFUSED: $hits line$([ "$hits" = 1 ] || echo s) with a private word (list: $WORDS). Clean them, then push again."
+  exit 1
+fi
+exit 0
