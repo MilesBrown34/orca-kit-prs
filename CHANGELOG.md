@@ -4,6 +4,9 @@ Newest first.
 
 ## Unreleased
 
+- **New: a secrets guard.** (PRS 2026-10-24)
+- **New: the secrets guard's `allow_read:` list**: one file by its exact path passes while the rest of a listed folder stays refused. (PRS 2026-11-02)
+- **Changed: the secrets guard compares normalized paths**: `//`, `.`, `..`, `${HOME}`, relative paths and `cd` targets no longer slip past a `never_read:` entry; with no known working directory a relative path is refused; Bash words are read as bash reads them (quotes removed and joined, `"$HOME"/.netrc`, `bash -c '..'` split again, chained and bare `cd`). (PRS 2026-11-02)
 - **New: skill checks.** (PRS 2026-10-22)
 - **New: `scripts/skill-usage.py <session log folder> [--days N]`** (PRS 2026-10-22)
 - **New: kit update in one step.** (PRS 2026-10-14)
