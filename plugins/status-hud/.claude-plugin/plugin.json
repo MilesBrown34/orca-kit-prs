@@ -70,18 +70,6 @@
       "description": "Minimum seconds between Windows commit readings.",
       "default": 30
     },
-    "cpuTempCmd": {
-      "type": "string",
-      "title": "CPU temperature command",
-      "description": "Shell command that prints the CPU temperature in °C. The default reads Linux's own sensor (coretemp, k10temp) and, on WSL, MSI Afterburner's shared readings on Windows (Afterburner must be running with CPU temperature in its monitoring list; a reading older than 30 seconds counts as none; WSL has no CPU sensor of its own). Empty, or no reading, keeps the plain load text.",
-      "default": "for h in /sys/class/hwmon/hwmon*; do case \"$(cat \"$h/name\" 2>/dev/null)\" in coretemp|k10temp|zenpower) echo $(( $(cat \"$h/temp1_input\") / 1000 )); exit 0;; esac; done; P=/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe; [ -x \"$P\" ] || P=powershell.exe; \"$P\" -NoProfile -Command '$m=[IO.MemoryMappedFiles.MemoryMappedFile]::OpenExisting(\"MAHMSharedMemory\",[IO.MemoryMappedFiles.MemoryMappedFileRights]::Read);$v=$m.CreateViewAccessor(0,0,[IO.MemoryMappedFiles.MemoryMappedFileAccess]::Read);if ($v.ReadUInt32(0) -ne 0x4D41484D -or [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - $v.ReadInt32(20) -gt 30) { exit 1 };$h=$v.ReadUInt32(8); $e=$v.ReadUInt32(16); $b=New-Object byte[] 260;for ($i=0; $i -lt $v.ReadUInt32(12); $i++) { $o=$h+$i*$e; [void]$v.ReadArray($o,$b,0,260); if ([Text.Encoding]::ASCII.GetString($b).Split([char]0)[0] -eq \"CPU temperature\") { [math]::Round($v.ReadSingle($o+1300)); exit } };exit 1'"
-    },
-    "cpuTempSeconds": {
-      "type": "number",
-      "title": "CPU temperature seconds",
-      "description": "Minimum seconds between CPU temperature readings.",
-      "default": 15
-    },
     "mounts": {
       "type": "string",
       "title": "Disk mounts",

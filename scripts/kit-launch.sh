@@ -21,10 +21,6 @@
 #                                     terminal (e.g. a Claude chat that runs /orchestration-kit:kit-update);
 #                                     exit 2 from it means "nothing to update": the menu stays open
 #   chat_args=--model sonnet          optional: extra claude arguments for [c] one chat
-#   chores_cmd=~/bin/chores.sh        optional: housekeeping that shows only when due. The menu runs
-#                                     `<cmd> --short` (3 s limit); a line from it adds [w] <that line>, and
-#                                     [w] runs `<cmd> --run` in this terminal (exit 2 = nothing to do: the
-#                                     menu stays open). No line, no [w].
 # Folders ending in -Test (trial copies), folders starting with _ (e.g. _archive), git worktrees (a .git
 # file, not a folder: a sibling's working copy of another project) and the kit's own folder are not listed.
 # Exit 0 done or quit, 1 no such project, 64 usage.
@@ -117,20 +113,6 @@ update_kit() {  # runs update_cmd= in this terminal (KIT_LAUNCH_DRY=1 prints it)
   "${cmd[@]}"
 }
 
-chores_line() {  # chores_cmd --short's first line ('' when unset, silent or slow)
-  local cc line=""; cc="$(conf chores_cmd)"; [ -n "$cc" ] || return 0
-  local -a cmd; read -ra cmd <<<"$cc"
-  if command -v timeout >/dev/null 2>&1; then line="$(timeout 3 "${cmd[@]}" --short 2>/dev/null | head -1)"
-  else line="$("${cmd[@]}" --short 2>/dev/null | head -1)"; fi
-  printf '%s' "$line"
-}
-
-run_chores() {  # runs chores_cmd --run in this terminal (KIT_LAUNCH_DRY=1 prints it); 2 = nothing to do
-  local -a cmd; read -ra cmd <<<"$(conf chores_cmd)"
-  if [ -n "${KIT_LAUNCH_DRY:-}" ] && [ -z "${KIT_LAUNCH_RUN_CHORES:-}" ]; then printf 'CHORES %s --run\n' "${cmd[*]}"; return 0; fi
-  "${cmd[@]}" --run
-}
-
 open_project() { if has_kit "$1"; then team_or_chat "$1"; else set_up_or_chat "$1"; fi; }
 
 new_project() {
@@ -158,7 +140,7 @@ list_projects() {
 
 list_projects
 case "${1:-}" in
-  -h|--help) sed -n "2,27p" "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h|--help) sed -n "2,23p" "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   --list)
     for d in "${PROJ[@]+"${PROJ[@]}"}"; do if has_kit "$d"; then echo "kit  $(basename "$d")"; else echo "-    $(basename "$d")"; fi; done
     exit 0 ;;
@@ -185,8 +167,6 @@ while :; do
     printf '  [%d] %-28s %s\n' "$((i+1))" "$(basename "${PROJ[i]}")" "$tag"
   done
   echo "  ------------------------------------------------"
-  CHORE="$(chores_line)"
-  [ -z "$CHORE" ] || echo "  [w] $CHORE"
   if [ -n "$(conf update_cmd)" ]; then echo "  [n] new project   [u] update the kit   [q] quit"
   else echo "  [n] new project   [q] quit"; fi
   c=""
@@ -195,8 +175,6 @@ while :; do
     [qQ]) exit 0 ;;
     [nN]) new_project; rc=$?; [ "$rc" -eq 2 ] || exit "$rc" ;;
     [uU]) if [ -n "$(conf update_cmd)" ]; then update_kit; rc=$?; [ "$rc" -eq 2 ] || exit "$rc"
-          else echo "  Pick a number, n, or q."; fi ;;
-    [wW]) if [ -n "$CHORE" ]; then run_chores; rc=$?; [ "$rc" -eq 2 ] || exit "$rc"
           else echo "  Pick a number, n, or q."; fi ;;
     *)
       if [[ "$c" =~ ^[0-9]+$ ]] && [ "$c" -ge 1 ] && [ "$c" -le "${#PROJ[@]}" ]; then

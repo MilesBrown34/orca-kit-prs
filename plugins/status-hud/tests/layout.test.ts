@@ -272,12 +272,3 @@ test('a ◔ row names the tracked programs its background work runs; other state
   expect(activityText({ ...bg, apps: undefined })).toBe('bg: Run the checks')
   expect(activityText({ ...bg, state: 'shell', activity: 'Bash: Run the checks' })).toBe('Bash: Run the checks')
 })
-
-test('the CPU line shows load and temperature when there is a reading, else load/threads; both fit before the graph', () => {
-  const cpu = (h: Snapshot['host']): string => lineText(drawBand(view({ snap: { ...snap, host: h } }), 180, 10)[1] as Line)
-  const withT = cpu({ ...snap.host!, cpuTemp: { c: 71.6, at: 0 } })
-  expect(withT).toContain('28.3 72°C')
-  expect(withT).not.toContain('/28t')
-  expect(cpu(snap.host)).toContain('28.3/28t')
-  expect(cpu({ ...snap.host!, cpuTemp: null })).toContain('28.3/28t')
-})

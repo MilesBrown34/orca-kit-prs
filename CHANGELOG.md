@@ -47,7 +47,6 @@ Newest first.
 - **New: a sibling name pool.** (PRS 2026-10-14)
 - **New: Windows Terminal tab style on WSL.** (PRS 2026-10-14)
 - **New: permission mode `bypass-available`.** (PRS 2026-10-14)
-- **New: `chores_cmd=` in launcher.conf adds a [w] line to the start word's menu, only while your housekeeping command says something is due.** (PRS 2026-11-10)
 - **Fixed: the start word writes `launcher.conf` in place, so a linked settings file stays a link.** (PRS 2026-11-06)
 - **New: your own start word.** (PRS 2026-10-14)
 - **Changed: the GitHub repository is now `Artekka/orcastration-kit`** (was `claude-orchestration-kit`). Install with `claude plugin marketplace add Artekka/orcastration-kit`; the plugin id (`orchestration-kit@artekka-kits`), its slash commands and `~/.orchestration-kit/` do not change. GitHub redirects the old URL, so existing installs keep working. README, GETTING-STARTED, CONTRIBUTING, SECURITY, the issue-template link and the Code of Conduct contact link use the new name; the plugin manifest gains `homepage` and `repository`.
