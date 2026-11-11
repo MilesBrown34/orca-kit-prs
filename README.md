@@ -37,8 +37,6 @@ New and changed in v1.0.2. ✨ Feature: something new to use or see · 🐛 Fix:
 
 # orchestration-kit
 
-
-
 Run **several Claude Code sessions on one repo at the same time** without file collisions,
 lost work, or confabulated green: a shared claimable board, one git worktree per session,
 and every piece of work verified by a session that didn't build it. Proven on the origin
@@ -123,12 +121,11 @@ workflow; upgrade it, get the newly distilled lessons.
 | `plugins/status-hud` | **optional** second plugin (`status-hud@artekka-kits`): a band or pane that shows every session's context fill, model and activity; `kit-init` asks (default: no), `/hud band\|pane\|off\|quiet` switches it. Host meters work on Linux and WSL only |
 | `HOW-IT-WORKS.md` · `docs/how-it-works.html` | the guide to the whole loop: one diagram, one short section per system (what it does, why it exists, which setting changes it), and how to make it your own |
 | `skills/falsify` | mutation-prove a guard/test can fail: commit GREEN first, diff-verified mutant, prediction written before the run, red observed unfiltered, byte-clean restore, re-green |
-| `skills/lessons-clean` | the weekly lessons clean: folds the lines sessions submit at the end of `docs/LESSONS.md` into numbered lessons, condensed once; ends by asking the human for additions |
 | `skills/reconcile` | land one worktree at a time onto main, push merges immediately, re-prove the gate there |
 | `skills/retro` | session close-out; in orchestrator mode skips deploy and replies "retro complete" to the seat |
 | `skills/post-feature` · `skills/bootstrap-project` | per-feature close-out checklist · bare directory → kit-adopted project |
 | `agents/verifier.md` | the read-only verifier subagent (contract-only, four checks, structured verdict) |
-| `hooks/` | SessionStart hook: fresh sessions in a repo with a board are told to orient and send READY to the seat; silent no-op elsewhere · `worktree-guard.sh` (PreToolUse on Edit/Write/MultiEdit/NotebookEdit): with `worktrees: enforced` in ORCHESTRATION.md, blocks edits in the main checkout except `docs/orchestration/**`, the log and the status doc; no-op otherwise (the default is `advised`) · `git-guard.sh` (PreToolUse on Bash): with `git_guard: on`, blocks `git stash` (except list/show), `git add -A`/`.`/`--all`, `git commit -a`, `git pull --rebase`, a force-push (`-f`/`--force`/`--force-with-lease`/`--mirror`/`+branch`), `<cmd>; git commit` and `git reset --soft origin/…` with the safe alternative; no-op otherwise (default `off`) · `secrets-guard.sh` (PreToolUse on Read/Grep and Bash): with a `never_read:` list in ORCHESTRATION.md → Secrets, refuses reading, searching or naming a listed path (key stores); no list, no guard. Tests: `bash tests/run.sh` |
+| `hooks/` | SessionStart hook: fresh sessions in a repo with a board are told to orient and send READY to the seat; silent no-op elsewhere · `worktree-guard.sh` (PreToolUse on Edit/Write/MultiEdit/NotebookEdit): with `worktrees: enforced` in ORCHESTRATION.md, blocks edits in the main checkout except `docs/orchestration/**`, the log and the status doc; no-op otherwise (the default is `advised`) · `git-guard.sh` (PreToolUse on Bash): with `git_guard: on`, blocks `git stash` (except list/show), `git add -A`/`.`/`--all`, `git commit -a`, `git pull --rebase` with the safe alternative; no-op otherwise (default `off`). Tests: `bash tests/run.sh` |
 | `scripts/kit-word.sh` · `scripts/kit-launch.sh` | your own start word (kit-init asks once per machine): typing it lists your projects with the kit's version, starts a project's team or one chat, or sets the kit up on a new one; `<word> news` runs an optional `news_cmd`; settings in `~/.orchestration-kit/launcher.conf` |
 | `scripts/start-team.sh` | open the seat + N siblings, each in its own window (terminal auto-detected), default names, skips any already running; `--dry-run`, `--terminal <backend>` / `--terminal list`, `--model` / `--effort` (always passed explicitly) |
 | `scripts/recycle-sibling.sh` | replace a session with a fresh `claude --name X`: **in the same tab** when it runs under `sibling-shell.sh`, else a new window first and then SIGTERM the old one (`--new-tab` forces that); `--dry-run` (prints `mode:`), `--terminal`, `--account` (keeps each session on its own Claude Code account), `--model` / `--effort` (always passed, never inherited: the lane picks the model) |
@@ -137,7 +134,7 @@ workflow; upgrade it, get the newly distilled lessons.
 | `scripts/ctx-fill.py` | measure a session's REAL context fill from its transcript; `--window 1m\|200k` picks the marks (350K/400K on 1M, 120K/150K on 200K); a Haiku transcript implies 200K |
 | `scripts/statusline-ctx.sh` | optional statusline: live context fill vs the 350K/400K marks (120K/150K on a 200K window) (yellow = self-report, red = hand over); enable via `templates/settings-snippets.md` |
 | `scripts/bootstrap.sh` | the mechanical half of `bootstrap-project` (idempotent, `--dry-run`) |
-| `templates/` | `AGENT_BOARD.md` (banner/handover/READY/archive shapes), `ORCHESTRATION.md` (gate, deploy, team, validator, doc paths), `AI_CONTEXT.md` + `build-log.md` (institutional memory), `CLAUDE-section.md`, `CLAUDE-slimness.md` (keep the always-loaded file slim), `briefs/` (row brief template + README), `rules/example.md` (a path-scoped rules file for `.claude/rules/`: loaded only when a session touches a matching file), settings snippet, optional agents + memory starter |
+| `templates/` | `AGENT_BOARD.md` (banner/handover/READY/archive shapes), `ORCHESTRATION.md` (gate, deploy, team, validator, doc paths), `AI_CONTEXT.md` + `build-log.md` (institutional memory), `CLAUDE-section.md`, `CLAUDE-slimness.md` (keep the always-loaded file slim), `briefs/` (row brief template + README), settings snippet, optional agents + memory starter |
 | `docs/GETTING-STARTED.md` | first-timer walkthrough: install → kit-init → seat + siblings → recycling → failure modes |
 | `docs/MULTI-ACCOUNT.md` | **optional:** run one team across several Claude Code accounts — `CLAUDE_CONFIG_DIR` per account, the shared session registry that makes cross-account messaging work, `--account` on both launch scripts |
 | `docs/GLOSSARY.md` | the kit's vocabulary (seat, sibling, row, fence, gate, READ, wave train …) |
@@ -146,10 +143,6 @@ workflow; upgrade it, get the newly distilled lessons.
 | `docs/EXAMPLE-SESSION.md` | **a real annotated 12-hour session** — one seat, three sibling builders, two deploy trains, and the six things the seat got wrong |
 
 **What the WORK/QUIET chip does and when you'll see it:** The chip is a switch for the kit's quiet mode. QUIET holds every NEW test/gate run started through `scripts/gate-throttle.sh` while you use the machine yourself; runs already going finish, and WORK lets new ones start normally. It only helps if your team runs its gate through that throttle, so the chip appears only when `scripts/quiet-mode.sh` exists in the session's directory (or quiet mode is already on). No throttle, no chip. If a press fails, the chip turns red and says `failed` for a minute, and the toast says why. `/hud help` repeats this, and `quietModeRequiresFile` changes the file it looks for (empty always shows the chip).
-
-**Choosing what the HUD shows:** when kit-init installs the HUD, it opens a setup page in your browser. Every item is numbered on a picture of the HUD: point at a number to see what it is and when it appears, click it to jump to it in the list, keep or remove each, then press **Done** and the choices are saved. Ask Claude to open it again any time (`bash scripts/hud-guide.sh open`). To look around without changing anything, `bash scripts/hud-guide.sh open --try`: everything works, but Done only shows what it would save.
-
-![The status HUD setup page: the HUD drawn with numbered items, one pop-up open, and the list of items with Keep and Remove](docs/images/status-hud-setup.png)
 
 **Generic vs project-specific:** the kit never hardcodes a gate or deploy command.
 Project specifics live in the consuming repo's `docs/orchestration/ORCHESTRATION.md`
