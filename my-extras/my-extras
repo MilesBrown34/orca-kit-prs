@@ -53,6 +53,7 @@ TOP_A, TOP_Z = "<!-- own-fork:top -->", "<!-- /own-fork:top -->"
 LOG_A, LOG_Z = "<!-- own-fork:changelog -->", "<!-- /own-fork:changelog -->"
 PAGE = os.path.join(REPO, "MY-EXTRAS.md")
 TRACKING = ("my-extras/", "tests/my-extras.test.sh")   # this tool's own files: never an extra, never sent
+LESSONS_FILE = "docs/LESSONS.md"   # committed straight on prs (one lessons file, CLAUDE.local.md rule 8): never stray
 STATUSES = ("Building", "Only mine", "Sent", "Changes asked", "Merged", "Turned down")
 DAY = 24 * 3600
 
@@ -172,7 +173,7 @@ def stray_commits():
         if git("branch", "--list", "extra/*", "--contains", sha):
             continue
         files = [f for f in git("show", "--name-only", "--format=", sha).splitlines() if f]
-        if files and all(f.startswith(TRACKING) for f in files):
+        if files and all(f.startswith(TRACKING) or f == LESSONS_FILE for f in files):
             continue
         ids = extra_patch_ids() if ids is None else ids
         if patch_id(sha) in ids:

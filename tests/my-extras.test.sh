@@ -68,6 +68,12 @@ out="$("$X" check)"; rc_is "check: a change and its exact undo are not stray" 0 
 echo "another" >> "$K/hud.ts"; q commit -qam "second quick fix"
 out="$("$X" check)"; rc_is "check: a stray commit beside a cancelled pair fails" 1 $?; has "check: names only the uncancelled one" "second quick fix" "$out"; hasnt "check: the cancelled pair is not named" "put it back" "$out"
 q reset --hard HEAD~3
+# A lessons-only commit straight on prs is the rule (one lessons file on prs), not stray; one that also touches another file is.
+mkdir -p "$K/docs"; echo "- a lesson. Why: x. Case: y." >> "$K/docs/LESSONS.md"; q add docs/LESSONS.md; q commit -qm "lessons: submit x"
+out="$("$X" check)"; rc_is "check: a lessons-only commit on prs is not stray" 0 $?
+echo "- another" >> "$K/docs/LESSONS.md"; echo "stray" >> "$K/hud.ts"; q commit -qam "lessons plus a code edit"
+out="$("$X" check)"; rc_is "check: lessons plus another file is stray" 1 $?; has "check: names the mixed commit" "lessons plus a code edit" "$out"
+q reset --hard HEAD~2
 echo more > "$K/my-extras/x"; q commit -am "tracking 2"
 out="$("$X" check)"; rc_is "check: tracking-only commit is fine" 0 $?
 
