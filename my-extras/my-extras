@@ -511,10 +511,15 @@ def public_copy(tag, held, extras):
     brought such an extra in is reverted, as one commit. Returns (worktree, sha, report). Refuses when a revert
     conflicts, or when the copy differs from prs in a file those merges did not change."""
     names = dict((e["id"], ename(e)) for e in extras)
+    held_all = set()
+    for i in held:
+        held_all |= set(patch_id(c) for c in git("rev-list", "--no-merges", UP + "..extra/" + i).splitlines())
     others = set()
     for e in in_kit(extras):
         if e["id"] not in held and git("rev-parse", "--verify", "-q", "extra/" + e["id"], check=False):
-            others |= set(patch_id(c) for c in git("rev-list", "--no-merges", UP + "..extra/" + e["id"]).splitlines())
+            ids = set(patch_id(c) for c in git("rev-list", "--no-merges", UP + "..extra/" + e["id"]).splitlines())
+            # a branch cut from prs carries the live-only extras' commits too; they stay the live-only extras' own
+            others |= (ids - held_all) if ids & held_all else ids
     own, files = set(), set()
     for i in held:
         own |= set(patch_id(c) for c in git("rev-list", "--no-merges", UP + "..extra/" + i).splitlines()) - others
