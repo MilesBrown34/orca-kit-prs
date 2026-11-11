@@ -19,7 +19,7 @@ New and changed in v1.0.3. ✨ Feature: something new to use or see · 🐛 Fix:
 
 - 🔧 **Lessons clean** (changed): the clean counts repeated lessons and proposes where each should live (a hook or test, a skill line, a rule line), for you to approve one by one
 - ✨ **Lesson homes**: repeated lessons live where sessions read them: falsify, verifier, board and orchestrate lines and two brief-template items; a recycled builder's brief also carries its row's STATUS.md, so it resumes instead of restarting; `gate-throttle.sh --log` refuses a tree with uncommitted or untracked paths (gate evidence names a committed tree); a board hook refuses a new `HH:MMZ` stamp that is ahead of the clock
-- 🔧 **Retro asks before remembering**: the retro skill turns a correction into a memory only when the human said to keep it ("remember this", or words to that effect); otherwise the fix in the work is enough
+- 🔧 **Retro proposes skills**: retro still saves memories and proposes lessons on its own, but never writes a skill: a skill candidate goes up as a kit lesson (or, project-only, a memory headed `Skill candidate:` named in the close summary) and is built only on the human's yes
 <!-- /own-fork:top -->
 
 # orchestration-kit
