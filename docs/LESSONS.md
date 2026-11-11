@@ -1488,3 +1488,4 @@ No project names, folders or people. Once a week the `lessons-clean` skill turns
 numbered lessons above (or one marked addition to an existing lesson), empties this list and moves
 the date.
 
+- A fix-round builder taking over from one that left without a report checks each contract item against the commits, not the handover: the code can be committed while a record step (the mutant record in a commit body) never was. Why: the handover read "green, mutants killed" and the last commit body said "record follows", but no commit carried it. Case: a fix round left as one WIP commit plus scratch logs; the new builder re-ran three mutants and committed the record as an empty commit.
