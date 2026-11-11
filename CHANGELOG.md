@@ -4,7 +4,6 @@ Newest first.
 
 ## Unreleased
 
-- **Removed: the secrets guard** (`never_read:` / `allow_read:` lists and `hooks/secrets-guard.sh`). (PRS 2026-11-10)
 - **Fixed, status HUD: a hook error when the session's directory disappears.** (PRS 2026-10-26)
 - **Fixed, status HUD: the quiet chip runs the kit's own script.** (PRS 2026-11-02)
 - **status-hud: the pane's icon is a setting** (PRS 2026-10-23)
@@ -33,6 +32,9 @@ Newest first.
 - **Changed: a lighter seat skill.** (PRS 2026-10-22)
 - **New: a weekly lessons clean.** The `lessons-clean` skill folds the lines sessions submit under `## Submitted` at the end of `docs/LESSONS.md` into numbered lessons (condensed once, never reworded later; new facts for an existing lesson as a marked addition), proves the file's shape with `tests/lessons-clean.test.sh`, and ends by asking the human for lessons to add. (PRS 2026-11-06)
 - **New, lessons 61–151 (`docs/LESSONS.md`, "Guards, gate logs and worktree git").** (PRS 2026-10-29)
+- **New: a secrets guard.** (PRS 2026-10-24)
+- **New: the secrets guard's `allow_read:` list**: one file by its exact path passes while the rest of a listed folder stays refused. (PRS 2026-11-02)
+- **Changed: the secrets guard compares normalized paths**: `//`, `.`, `..`, `${HOME}`, relative paths and `cd` targets no longer slip past a `never_read:` entry; with no known working directory a relative path is refused; Bash words are read as bash reads them (quotes removed and joined, `"$HOME"/.netrc`, `bash -c '..'` split again, chained and bare `cd`). (PRS 2026-11-02)
 - **New: skill checks.** (PRS 2026-10-22)
 - **New: `scripts/skill-usage.py <session log folder> [--days N]`** (PRS 2026-10-22)
 - **New: kit update in one step.** (PRS 2026-10-14)
