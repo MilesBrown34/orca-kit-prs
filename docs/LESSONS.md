@@ -1286,6 +1286,7 @@ or a human catching what the checks had passed.*
     on first use.
 
 ## Submitted (not yet cleaned)
+- A self-test plant for a fixture guard must never search the live file for exact text or count today's files: add its own marker line to a copy and check each file by name. Why: the plant crashes (or fails after a correct regenerate) on the very real edit the guard exists for, and the guard's own message never prints. Case: a drive-file guard's plants asserted a code line and a plant count of 10; editing that line, or adding one preloaded helper and regenerating, left the self-test red on an AssertionError / '11 plants'. (2026-11-11, a guard READ, fix rounds 1-2)
 
 Last clean: 2026-11-07
 
