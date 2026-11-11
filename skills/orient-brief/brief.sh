@@ -42,4 +42,15 @@ if [ -n "$banner" ]; then
 else
   echo "NO BANNER: no live ORCHESTRATOR ACTIVE section on the board, so there is no seat. Ask the human."
 fi
+
+# A recycled builder resumes instead of restarting: the row's STATUS.md (its evidence dir, newest first) comes
+# too, at most 6000 characters. No STATUS.md, no section. BRIEF_SCRATCH overrides the scratch root (tests).
+scratch="${BRIEF_SCRATCH:-$HOME/.orchestration-kit/scratch}"
+status="$(ls -t "$scratch"/*/*/"$row"/STATUS.md 2>/dev/null | head -n1)"
+if [ -n "$status" ]; then
+  echo
+  echo "=== STATUS ($status) ==="
+  head -c 6000 "$status"
+  echo
+fi
 exit 0

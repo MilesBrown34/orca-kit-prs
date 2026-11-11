@@ -7,7 +7,7 @@ allowed-tools: Bash(bash *orient-brief/brief.sh*)
 
 # Orient (lean): row $0
 
-Everything below the line was produced by `brief.sh` before you saw this text (fetch, the brief from origin else this checkout, the board banner). Nothing to fetch or `cat`.
+Everything below the line was produced by `brief.sh` before you saw this text (fetch, the brief from origin else this checkout, the board banner, and the row's STATUS.md when a recycled builder left one: resume from the step it names, don't restart). Nothing to fetch or `cat`.
 
 !`bash "${CLAUDE_SKILL_DIR}/brief.sh" '$0'`
 

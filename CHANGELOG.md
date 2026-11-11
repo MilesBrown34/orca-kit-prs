@@ -4,6 +4,8 @@ Newest first.
 
 ## Unreleased
 
+- **New: lesson homes — repeated lessons now live where sessions read them: falsify, verifier, board and orchestrate lines, two brief-template items, a recycled builder's STATUS.md in its brief, `gate-throttle.sh --log` refuses a dirty tree, and a board hook refuses clock stamps ahead of the clock.** (PRS 2026-11-11)
+- **New: `chores_cmd=` in launcher.conf adds a [w] line to the start word's menu, only while your housekeeping command says something is due.** (PRS 2026-11-10)
 - **Fixed, status HUD: a hook error when the session's directory disappears.** (PRS 2026-10-26)
 - **Fixed, status HUD: the quiet chip runs a folder install's script from its folder.** (PRS 2026-11-11)
 - **Fixed, status HUD: the quiet chip runs the kit's own script.** (PRS 2026-11-02)

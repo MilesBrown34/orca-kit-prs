@@ -9,6 +9,8 @@
 #            with "SHA <full commit>" and "started <HH:MM:SS> dirty=<changed paths>" read at that moment
 #            (not while waiting: a commit made in the queue would make the log name the wrong code) and
 #            ends with "exit <code>". The slot line stays on stderr.
+#            A tree with any changed or untracked path is REFUSED (exit 65, the log says why, the command
+#            does not run): gate evidence must name a committed tree. A plain run (no --log) is not checked.
 #
 # Slots:     `gate_slots:` in the team block of docs/orchestration/ORCHESTRATION.md (default 2);
 #            GATE_SLOTS overrides it.
@@ -42,7 +44,15 @@ fi
 # The command, logged when --log was given: commit and dirty count first, read now, exit code last.
 run() {
   [ -z "$log" ] && { "$@"; return $?; }
-  local rc
+  local rc dirty
+  dirty="$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
+  if [ "${dirty:-0}" != 0 ]; then
+    { echo "SHA $(git rev-parse HEAD 2>/dev/null || echo none)"
+      echo "REFUSED dirty=$dirty: commit (or ignore) every changed and untracked path first; gate evidence names a committed tree"
+      echo "exit 65"; } > "$log"
+    echo "gate-throttle: REFUSED: $dirty uncommitted or untracked path(s); --log is gate evidence, commit first" >&2
+    return 65
+  fi
   {
     echo "SHA $(git rev-parse HEAD 2>/dev/null || echo none)"
     echo "started $(date +%H:%M:%S) dirty=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')"

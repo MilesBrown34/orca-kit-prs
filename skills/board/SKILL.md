@@ -43,6 +43,7 @@ The shared checkout's HEAD **and index** are shared by every session. Explicit s
 [ "$(git symbolic-ref -q HEAD)" = refs/heads/main ] || { echo "shared checkout not on main — STOP, tell the seat"; exit 1; }
 git diff HEAD --quiet || { echo "shared tree/index dirty — a sibling's hunk would ride your commit; wait"; exit 1; }
 # …edit the board…
+# a scripted edit asserts its anchor matched exactly once before writing (an edit that matched nothing is not "done")
 git add docs/orchestration/AGENT_BOARD.md && git commit -m "chore(orchestration): <tag> <what>"   # ONE command
 git push origin main                                                                              # immediately; never HEAD:main
 ```

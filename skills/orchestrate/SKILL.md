@@ -85,6 +85,7 @@ The seat chooses a session's model at launch; a recycled session **never inherit
 - Silent >30 min mid-build → `git log origin/main` + board + message. Truly stalled → banner the stall, reassign (never two silent owners on one row).
 - A correction that changes a builder's next hour goes in a **top-of-board banner**, not only a message.
 - **A knob beats etiquette** (LESSON 54). Before telling siblings "don't run X", check whether the toolchain runs X for them; if so the rule is unachievable — ship an env knob and announce it. "I didn't run X" ≠ "X didn't run".
+- **Before OKing a narrowed scope, test it against the row's goal and its red case.** A narrowing that drops the case the row exists for is a new row, not a scope cut.
 - **Keep a builder's hedges when you summarize** (LESSON 52). "A small piece of evidence" stays exactly that on the board.
 
 ## 5 · Hand-off verify gate — a SIBLING SESSION verifies

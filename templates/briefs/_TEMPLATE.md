@@ -23,6 +23,7 @@ rests on (the human or the seat, with the date).
 1. …
 2. …
 3. A `/orchestration-kit:falsify` record (at least one mutant per new guard) in the commit body.
+4. Every new check prints its input count and fails on zero: an empty input is a red, never a pass.
 
 ## Fence
 
@@ -32,6 +33,8 @@ Rules in force: `.claude/rules/<file>.md` … (from ORCHESTRATION.md → Change 
 "none". The verifier reads them, and ORCHESTRATION.md → Review checklist, at `origin/main`.
 
 ## Seam map (file:line, as measured at the base sha — verify upward)
+
+Every reader and writer of each value the row changes, found by what the code does, not by its path.
 
 - `path/to/file:123` — what lives there and why it matters
 - …
