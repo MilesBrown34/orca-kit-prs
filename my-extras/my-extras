@@ -360,7 +360,7 @@ def readme_top(tag, prev, extras, rows):
     n = len(listed(extras))
     lines = [
         TOP_A,
-        "**This is PRS's fork of Artekka's orchestration kit.** It is his kit, kept current with his releases, plus %d" % n,
+        "**This is PRS's fork of [Artekka's original orchestration kit](https://github.com/Artekka/orcastration-kit).** It is his kit, kept current with his releases, plus %d" % n,
         "extra%s: things built while running it on real projects, kept as separate branches and offered to him one at a time." % ("" if n == 1 else "s"),
         "Install this fork to get all of them; **[the full list of extras](%s)** says what each one does." % EXTRAS_PAGE,
         "The official release is **%s**, on Artekka's %s; releases are on the Releases page, and this fork's changelog is at" % (tag, version("prs")),
