@@ -1286,6 +1286,9 @@ or a human catching what the checks had passed.*
     on first use.
 
 ## Submitted (not yet cleaned)
+- A source scan that keeps one alias table per FILE turns a same-named local from another function into a false red once a second rule reads aliases: key aliases per function (file-level binds + its own; a parameter hides a file-level name) and prove the scope with a control that binds the name in one function and uses it in another. (2026-11-11, a source-scan guard row, fix round 1)
+- A census that walks the same file list as the check it guards cannot see a dropped root (give each root its own count from an independent walk), and a floor set at today's exact count fails on a correct rewrite (set it well below and prove the rule with controls instead). (2026-11-11, a source-scan guard row, READ finding F1 + falsify run 1)
+- A kink test on a sampled curve that compares neighbouring step RATIOS fires on smooth curves wherever the slope nears zero and barely separates smooth from cornered; normalise the change of step by the series' median step and flag only an isolated peak (second difference minus its neighbours' mean): measure the worst smooth case and the known corner before picking the threshold. (2026-11-11, a growth-curve check row)
 
 Last clean: 2026-11-07
 
@@ -1295,3 +1298,9 @@ No project names, folders or people. Once a week the `lessons-clean` skill turns
 numbered lessons above (or one marked addition to an existing lesson), empties this list and moves
 the date.
 
+- 2026-11-11: a seat with six builders in their plan phase filled 335K of a 1M window in about 40 minutes (start 115K: whole-board read, overlay, skills, one 20 KB result file; then 4-6K per plan + ruling). Read the board by banner + grep, read result files by section, and write the handover lines as the rulings are made.
+- A check that FAILs a known-bad input exactly as predicted can still be reading the wrong rows or region: draw an overlay of what it measured on every input before the FAIL counts (twice in one row, a predicted FAIL rode on hip rows instead of the target feature). (2026-11-11)
+- After stopping a hung background run and starting it again, check the run log's modification time before reading an error from it. Why: the old run's log still holds the old error until the new run overwrites it, so a healthy new run gets killed for an error it never had. Case: 2026-11-11, a render row.
+- A mutation harness must refuse to run when its mutant did not change the target file (count the diff lines first): a path joined twice made every "mutant" run the unchanged code and pass, which reads like a check that cannot fail. Why: the green runs were silently no-ops until the diff count was added.
+- A background shell task can be reported "completed" while a child process it started is still running: wait on a done marker the script writes as its last line, and list running processes before re-launching, or two copies run side by side into one log and skew a timing.
+- A share check measured against the sample's own median ("px darker than its median - k") cannot credit a change that moves the median: when the new look darkens close to half the area, the median falls into the dark tone and the check reads lower as the look improves. Measure against the baseline's statistic (today's median) and keep the own-median form only as a cap. Why: a three-round look test scored its strongest round worst (0.100 vs 0.452 measured against today's median).
