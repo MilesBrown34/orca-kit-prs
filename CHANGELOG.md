@@ -37,6 +37,7 @@ Newest first.
 - **Changed: the secrets guard compares normalized paths**: `//`, `.`, `..`, `${HOME}`, relative paths and `cd` targets no longer slip past a `never_read:` entry; with no known working directory a relative path is refused; Bash words are read as bash reads them (quotes removed and joined, `"$HOME"/.netrc`, `bash -c '..'` split again, chained and bare `cd`). (PRS 2026-11-02)
 - **New: skill checks.** (PRS 2026-10-22)
 - **New: `scripts/skill-usage.py <session log folder> [--days N]`** (PRS 2026-10-22)
+- **Fixed: kit update compares project script copies with the folder a folder install is read from.** (PRS 2026-11-11)
 - **New: kit update in one step.** (PRS 2026-10-14)
 - **New: validator lanes.** (PRS 2026-10-27)
 - **New: personal team defaults, asked once per machine.** (PRS 2026-10-14)
