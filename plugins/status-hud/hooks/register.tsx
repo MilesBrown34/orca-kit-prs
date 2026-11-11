@@ -9,7 +9,7 @@ import { countApps, liveVersion, parsePs } from '../lib/apps'
 import type { Io } from '../lib/io'
 import { ensureStatusDirs } from '../lib/ensureDir'
 import { newTickState, tick } from '../lib/tick'
-import { kitDirFrom, QUIET_EXPLAIN, quietFailure, quietNote, toggleQuietMode } from '../lib/quietmode'
+import { isKitManifest, kitDirFrom, kitFolderFrom, QUIET_EXPLAIN, quietFailure, quietNote, toggleQuietMode } from '../lib/quietmode'
 import { drawBand, drawPane, type Line, type View } from '../lib/layout'
 
 const PANE = 'status-hud'
@@ -271,7 +271,12 @@ export const register: Register = (on, options) => {
     S.colorAt = 0
     const configDir = env.trim().replace(/^CLAUDE_CONFIG_DIR=/, '') || (await $.env.get('CLAUDE_CONFIG_DIR'))
     me.account = accountFromConfigDir(configDir)
-    S.quietDir = kitDirFrom(await S.io.read(`${configDir || `${home}/.claude`}/plugins/installed_plugins.json`)) || S.cwd
+    const pluginsDir = `${configDir || `${home}/.claude`}/plugins`
+    const installed = await S.io.read(`${pluginsDir}/installed_plugins.json`)
+    // A kit installed from a folder is read in place by Claude Code: its script runs from that folder, not the installed copy.
+    const folder = kitFolderFrom(installed, await S.io.read(`${pluginsDir}/known_marketplaces.json`))
+    const live = folder !== '' && isKitManifest(await S.io.read(`${folder}/.claude-plugin/plugin.json`))
+    S.quietDir = (live ? folder : kitDirFrom(installed)) || S.cwd
     await $.command.register({ name: 'hud', description: 'Status HUD: /hud band | pane | off | quiet | help' })
     $.clock.every(500, () => void doTick($))
     void doTick($)

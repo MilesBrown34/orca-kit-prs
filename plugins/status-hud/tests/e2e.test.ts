@@ -103,6 +103,33 @@ test('Quiet Mode chip: with the kit installed, the chip shows and its command ru
   expect(w.cwds.filter((c, j) => j !== i).every(c => c === '/home/u')).toBe(true)
 })
 
+test('Quiet Mode chip: a kit installed from a folder runs its command from that folder, not from the installed copy', { options: { quietModeOnCmd: 'bash g.sh on', quietModeOffCmd: 'bash g.sh off', quietModeStatusCmd: 'false' } }, async ($, on) => {
+  const w = world(on)
+  w.files.set('/home/u/.claude-acct2/plugins/installed_plugins.json', JSON.stringify({ version: 2, plugins: { 'orchestration-kit@m': [{ installPath: '/k' }] } }))
+  w.files.set('/home/u/.claude-acct2/plugins/known_marketplaces.json', JSON.stringify({ m: { source: { source: 'directory', path: '/live' }, installLocation: '/live' } }))
+  w.files.set('/live/.claude-plugin/plugin.json', JSON.stringify({ name: 'orchestration-kit' }))
+  w.files.set('/live/scripts/quiet-mode.sh', '')
+  w.files.set('/k/scripts/quiet-mode.sh', '')
+  await $.session.start(START)
+  await w.clock.advance(500)
+  const band = await $.ui.mount({ plugin: 'status-hud', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  await band.press({ key: 'p-quiet' })
+  expect(w.cwds[w.ran.findIndex(a => a[2] === 'bash g.sh on')]).toBe('/live')
+})
+
+test('Quiet Mode chip: a marketplace folder that is not itself the kit, or a downloaded kit, keeps the installed copy', { options: { quietModeOnCmd: 'bash g.sh on', quietModeOffCmd: 'bash g.sh off', quietModeStatusCmd: 'false' } }, async ($, on) => {
+  const w = world(on)
+  w.files.set('/home/u/.claude-acct2/plugins/installed_plugins.json', JSON.stringify({ version: 2, plugins: { 'orchestration-kit@m': [{ installPath: '/k' }] } }))
+  w.files.set('/home/u/.claude-acct2/plugins/known_marketplaces.json', JSON.stringify({ m: { source: { source: 'directory', path: '/shelf' }, installLocation: '/shelf' } }))
+  w.files.set('/shelf/.claude-plugin/plugin.json', JSON.stringify({ name: 'something-else' }))
+  w.files.set('/k/scripts/quiet-mode.sh', '')
+  await $.session.start(START)
+  await w.clock.advance(500)
+  const band = await $.ui.mount({ plugin: 'status-hud', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  await band.press({ key: 'p-quiet' })
+  expect(w.cwds[w.ran.findIndex(a => a[2] === 'bash g.sh on')]).toBe('/k')
+})
+
 test('the heartbeat never carries the prompt text, a raw command, a path or a URL; the file is chmod 600 and the dir 700', { options: { refreshSeconds: 1 } }, async ($, on) => {
   let during = ''
   let w!: ReturnType<typeof world>
