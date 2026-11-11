@@ -147,6 +147,13 @@ def patch_id(sha):
     return out.split()[0] if out.split() else None
 
 
+def undo_patch_id(sha):
+    """The change that exactly undoes this commit (what reverting it would do), as a patch id."""
+    patch = subprocess.run(["git", "-C", REPO, "diff", sha, sha + "^"], capture_output=True, text=True).stdout
+    out = subprocess.run(["git", "-C", REPO, "patch-id", "--stable"], input=patch, capture_output=True, text=True).stdout
+    return out.split()[0] if out.split() else None
+
+
 def extra_patch_ids():
     ids = set()
     for br in git("for-each-ref", "--format=%(refname:short)", "refs/heads/extra/").splitlines():
@@ -157,8 +164,10 @@ def extra_patch_ids():
 
 def stray_commits():
     """prs commits since the base that no extra branch holds (by id, else by the change itself:
-    an extra amended after its merge is the same change) and that touch more than this tool."""
-    out, ids = [], None
+    an extra amended after its merge is the same change) and that touch more than this tool.
+    Two such commits that undo each other exactly (a change and its restore) leave prs as it was,
+    so neither counts."""
+    out, ids, found = [], None, []
     for sha in git("rev-list", "--no-merges", base() + "..prs").splitlines():
         if git("branch", "--list", "extra/*", "--contains", sha):
             continue
@@ -168,7 +177,19 @@ def stray_commits():
         ids = extra_patch_ids() if ids is None else ids
         if patch_id(sha) in ids:
             continue
-        out.append(sha[:7] + " " + git("show", "-s", "--format=%s", sha))
+        found.append(sha)
+    # rev-list is newest first: a later commit that is the exact undo of an earlier one cancels both.
+    cancelled = set()
+    for i, later in enumerate(found):
+        if later in cancelled:
+            continue
+        for earlier in found[i + 1:]:
+            if earlier not in cancelled and patch_id(later) is not None and patch_id(later) == undo_patch_id(earlier):
+                cancelled.update((later, earlier))
+                break
+    for sha in found:
+        if sha not in cancelled:
+            out.append(sha[:7] + " " + git("show", "-s", "--format=%s", sha))
     return out
 
 

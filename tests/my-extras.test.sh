@@ -61,7 +61,13 @@ sed -i 's/^- status: Building$/- status: Only mine/' "$K/MY-EXTRAS.md"
 echo "stray" >> "$K/hud.ts"; q commit -am "quick fix on prs"
 out="$("$X" header)"; has "header: unlisted change flagged" "⚠ 1 unlisted change" "$out"
 out="$("$X" check)"; rc=$?; rc_is "check: stray commit fails" 1 $rc; has "check: names it" "quick fix on prs" "$out"
-q reset --hard HEAD~1
+# ...and a change straight on prs that a later commit undoes exactly leaves prs as it was: neither counts.
+# A third stray commit beside the pair is still caught, and a partial undo cancels nothing.
+git -C "$K" checkout -q HEAD~1 -- hud.ts; q commit -qm "put it back"
+out="$("$X" check)"; rc_is "check: a change and its exact undo are not stray" 0 $?
+echo "another" >> "$K/hud.ts"; q commit -qam "second quick fix"
+out="$("$X" check)"; rc_is "check: a stray commit beside a cancelled pair fails" 1 $?; has "check: names only the uncancelled one" "second quick fix" "$out"; hasnt "check: the cancelled pair is not named" "put it back" "$out"
+q reset --hard HEAD~3
 echo more > "$K/my-extras/x"; q commit -am "tracking 2"
 out="$("$X" check)"; rc_is "check: tracking-only commit is fine" 0 $?
 
