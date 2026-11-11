@@ -1,38 +1,25 @@
 <!-- own-fork:top -->
-**This is PRS's fork of [Artekka's original orchestration kit](https://github.com/Artekka/orcastration-kit).** It is his kit, kept current with his releases, plus 27
+**This is PRS's fork of [Artekka's original orchestration kit](https://github.com/Artekka/orcastration-kit).** It is his kit, kept current with his releases, plus 29
 extras: things built while running it on real projects, kept as separate branches and offered to him one at a time.
 Install this fork to get all of them; **[the full list of extras](EXTRAS.md)** says what each one does.
-The official release is **v1.0.2**, on Artekka's 0.9.0; releases are on the Releases page, and this fork's changelog is at
+The official release is **v1.0.3**, on Artekka's 0.9.0; releases are on the Releases page, and this fork's changelog is at
 the end of this file.
 
-New and changed in v1.0.2. ✨ Feature: something new to use or see · 🐛 Fix: something broken, repaired · 🔧 Update: a change to how the workflow runs.
+New and changed in v1.0.3. ✨ Feature: something new to use or see · 🐛 Fix: something broken, repaired · 🔧 Update: a change to how the workflow runs.
 
 #### Start and setup
 
-- 🐛 **Start word** (changed): the start word writes launcher.conf in place, so a linked settings file stays a link
-- ✨ **Validator lanes**: `validators: N` in the team block (or `--validators N`) opens lanes named `v1-<name>`, `v2-<name>` from the same name pool that never build; the seat gives them READs, train audits and falsify runs, and the Validator block can say "the v-lanes" instead of a name the next team start may not draw; a running v-lane is kept, `numbered: v` is refused
+- 🐛 **Kit update** (changed): the project report and refresh compare with the folder a folder install is read from, not the installed copy
 
 #### Status bar
 
-- 🐛 **Programs and live version** (changed): the live version stays when a board rewrite drops the DEPLOY line
-- 🐛 **HUD spawn directory**: the status bar runs its host commands from the home directory, never the session's own, and skips a heartbeat tick that cannot start; before, a session that removed the worktree it stood in showed `HooksError: $.process.run(sh) failed to start: ENOENT` in the chat
-- 🐛 **Pane keys**: the status bar's side pane shows the same keys as the band, under its sessions heading: the context colors, each project's name beside its dot color, and the busy/idle marks, each on a line of its own; before, the pane never said which dot was which project
-
-#### Tests, gates and guards
-
-- ✨ **Secrets guard** (changed): an `allow_read:` list lets one file through by its exact path while the rest of a listed folder stays refused; paths are compared normalized, so `//`, `.`, `..`, `${HOME}`, relative paths, quoted or joined Bash words and `cd` targets no longer slip past a `never_read:` entry
-- ✨ **Force-push guard**: the git guard also refuses a force-push (`git push -f`, `--force`, `--force-with-lease`, `--mirror`, a `+branch` refspec) and says to push the rewritten work as a new branch instead; it also refuses `<cmd>; git commit` (a red gate still commits; use `&&`) and `git reset --soft origin/…` (reverts what main gained; squash onto the merge base); a human can still run them in their own terminal
-- 🔧 **Falsify checklist**: the falsify skill gets the rules its users kept tripping on: a break that only adds lines changes nothing, show the break moved the value the check reads, abort on an empty selection, predict the exact failure line, run in the gate's own mode, score from the full log, stack breaks when two fixes cover each other, find the second path before calling a check weak, calibrate a check (null edit, accepted output, known-bad) before it judges, prove a ranking metric on known pairs, prove a complaint's check red on the rejected output; new break designs: one per side and per path, flip the policy constant once, paste the guard onto the other kind
+- 🐛 **HUD spawn directory** (changed): the quiet chip runs a folder install's quiet-mode.sh from the kit's own folder, not the installed copy
 
 #### Seat, verifier and lessons
 
-- 🔧 **Lessons from the checks** (changed): original lessons back to their exact text (additions after a PRS stamp); 19 overlapping lessons retired into others, numbers kept; the rest condensed to the original's format (rule + why)
-- 🔧 **Seat never codes, subagents included**: the orchestrate skill and the glossary say the seat's subagents never write a row's code either: a seat subagent researches, reviews or moves text, and a build or a fix round, however small, goes to a builder sibling and gets a READ; before, a seat sent a fix round to its own subagent and merged it on its own check with no READ
-- 🐛 **Lean board**: a builder's start carries only the seat's live banner (the cut stops at the next heading of any depth and at 6000 characters); at every seat start the rows earlier seats closed move verbatim to the board archive; the brief template gets a `builds on` line naming earlier rows and where to read them
-- 🐛 **Seat keeps working while it waits**: in non-blocking mode, a seat whose rows all wait on the human starts the work that needs no answer (slow checks, owed log entries, rows that need no ruling) before it waits; before, a seat sat idle for hours with that work undone
-- 🔧 **Seat checks**: the seat audits every worktree (dirty files, unpushed commits, lost gate logs, stale locks) before assigning after a crash or takeover; a redo round toward a person's target starts with today's result beside their own reference; the brief template says to commit first and run the gate through `gate-throttle.sh --log`
-- 🔧 **Verifier checks stubs**: the verifier asks for the documented platform contract a stub or fake follows (the doc line) and one check per behaviour the stub skips; tests on a stub can pass against a platform that does not exist
-- ✨ **Lessons clean**: the `lessons-clean` skill folds the lines sessions submit under `## Submitted` at the end of docs/LESSONS.md into numbered lessons (condensed once, never reworded later; new facts for an existing lesson as a marked, dated addition), `tests/lessons-clean.test.sh` proves the file's shape, and the clean ends by asking the human for lessons to add
+- 🔧 **Lessons clean** (changed): the clean counts repeated lessons and proposes where each should live (a hook or test, a skill line, a rule line), for you to approve one by one
+- ✨ **Lesson homes**: repeated lessons live where sessions read them: falsify, verifier, board and orchestrate lines and two brief-template items; a recycled builder's brief also carries its row's STATUS.md, so it resumes instead of restarting; `gate-throttle.sh --log` refuses a tree with uncommitted or untracked paths (gate evidence names a committed tree); a board hook refuses a new `HH:MMZ` stamp that is ahead of the clock
+- 🔧 **Retro asks before remembering**: the retro skill turns a correction into a memory only when the human said to keep it ("remember this", or words to that effect); otherwise the fix in the work is enough
 <!-- /own-fork:top -->
 
 # orchestration-kit
@@ -284,6 +271,9 @@ Artekka's own changelog is in [CHANGELOG.md](CHANGELOG.md), his releases top dow
 Unreleased. Below, one entry per release of this fork, newest first.
 
 <!-- own-fork:changelog -->
+
+### v1.0.3 (2026-11-11)
+Artekka's kit still 0.9.0. New extras: Lesson homes, Retro asks before remembering. Changed: Kit update, HUD spawn directory, Lessons clean.
 
 ### v1.0.2 (2026-11-10)
 Artekka's kit still 0.9.0. New extras: Falsify checklist, Force-push guard, HUD spawn directory, Lean board, Lessons clean, Pane keys, Seat checks, Seat keeps working while it waits, Seat never codes, subagents included, Validator lanes, Verifier checks stubs. Changed: Start word, Programs and live version, Secrets guard, Lessons from the checks. Extras given to his kit or retired: CPU temperature, Cap count fix, Gate log, Gate memory, Model badges, Session state.

@@ -1,6 +1,6 @@
 # Extras
 
-Every extra this fork adds to Artekka's orchestration kit, as of **v1.0.2** (on Artekka's 0.9.0): 27 in all. Each one is
+Every extra this fork adds to Artekka's orchestration kit, as of **v1.0.3** (on Artekka's 0.9.0): 29 in all. Each one is
 kept as its own branch (`extra/<id>`) and offered to him on its own; "since" names the release that first carried it.
 
 ✨ Feature: something new to use or see · 🐛 Fix: something broken, repaired · 🔧 Update: a change to how the workflow runs.
@@ -43,3 +43,5 @@ kept as its own branch (`extra/<id>`) and offered to him on its own; "since" nam
 - 🔧 **Seat checks**: the seat audits every worktree (dirty files, unpushed commits, lost gate logs, stale locks) before assigning after a crash or takeover; a redo round toward a person's target starts with today's result beside their own reference; the brief template says to commit first and run the gate through `gate-throttle.sh --log` (since v1.0.2)
 - 🔧 **Verifier checks stubs**: the verifier asks for the documented platform contract a stub or fake follows (the doc line) and one check per behaviour the stub skips; tests on a stub can pass against a platform that does not exist (since v1.0.2)
 - ✨ **Lessons clean**: the `lessons-clean` skill folds the lines sessions submit under `## Submitted` at the end of docs/LESSONS.md into numbered lessons (condensed once, never reworded later; new facts for an existing lesson as a marked, dated addition), `tests/lessons-clean.test.sh` proves the file's shape, and the clean ends by asking the human for lessons to add (since v1.0.2)
+- ✨ **Lesson homes**: repeated lessons live where sessions read them: falsify, verifier, board and orchestrate lines and two brief-template items; a recycled builder's brief also carries its row's STATUS.md, so it resumes instead of restarting; `gate-throttle.sh --log` refuses a tree with uncommitted or untracked paths (gate evidence names a committed tree); a board hook refuses a new `HH:MMZ` stamp that is ahead of the clock (since v1.0.3)
+- 🔧 **Retro asks before remembering**: the retro skill turns a correction into a memory only when the human said to keep it ("remember this", or words to that effect); otherwise the fix in the work is enough (since v1.0.3)
