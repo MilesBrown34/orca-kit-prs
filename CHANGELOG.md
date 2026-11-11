@@ -5,6 +5,7 @@ Newest first.
 ## Unreleased
 
 - **Fixed, status HUD: a hook error when the session's directory disappears.** (PRS 2026-10-26)
+- **Fixed, status HUD: the quiet chip runs a folder install's script from its folder.** (PRS 2026-11-11)
 - **Fixed, status HUD: the quiet chip runs the kit's own script.** (PRS 2026-11-02)
 - **Changed: the GitHub repository is now `Artekka/orcastration-kit`** (was `claude-orchestration-kit`). Install with `claude plugin marketplace add Artekka/orcastration-kit`; the plugin id (`orchestration-kit@artekka-kits`), its slash commands and `~/.orchestration-kit/` do not change. GitHub redirects the old URL, so existing installs keep working. README, GETTING-STARTED, CONTRIBUTING, SECURITY, the issue-template link and the Code of Conduct contact link use the new name; the plugin manifest gains `homepage` and `repository`.
 - **Fixed: a team start with no Claude running exited silently.** (PRS 2026-10-17)

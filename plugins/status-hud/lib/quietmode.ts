@@ -16,7 +16,8 @@ export function canToggle(c: Config): boolean {
 /**
  * The installed orchestration kit's folder, from Claude Code's installed_plugins.json: the quiet chip runs the kit's own
  * scripts/quiet-mode.sh from there, so it works in every session (the switch is one flag file for the whole machine).
- * '' when the kit is not installed or the file cannot be read.
+ * '' when the kit is not installed or the file cannot be read. A kit installed from a folder is run from that folder
+ * instead (`kitFolderFrom`); this is the installed copy every other install runs from.
  */
 export function kitDirFrom(installedPluginsJson: string | null): string {
   try {
@@ -26,6 +27,33 @@ export function kitDirFrom(installedPluginsJson: string | null): string {
     return typeof p === 'string' ? p : ''
   } catch {
     return ''
+  }
+}
+
+/**
+ * The kit's own folder when it was installed from a folder on this machine (a `directory` marketplace in Claude Code's
+ * known_marketplaces.json): Claude Code reads such an install in place, so the installed copy can be older than the kit
+ * the sessions run. '' for any other install. The caller confirms the folder is the kit with `isKitManifest`.
+ */
+export function kitFolderFrom(installedPluginsJson: string | null, knownMarketplacesJson: string | null): string {
+  try {
+    const plugins = (JSON.parse(installedPluginsJson ?? '') as { plugins?: Record<string, unknown> }).plugins ?? {}
+    const key = Object.keys(plugins).find(k => k.startsWith('orchestration-kit@'))
+    if (!key) return ''
+    const markets = JSON.parse(knownMarketplacesJson ?? '') as Record<string, { source?: { source?: unknown }; installLocation?: unknown }>
+    const m = markets[key.slice('orchestration-kit@'.length)]
+    return m?.source?.source === 'directory' && typeof m.installLocation === 'string' ? m.installLocation.replace(/\/$/, '') : ''
+  } catch {
+    return ''
+  }
+}
+
+/** Whether a folder's .claude-plugin/plugin.json is the orchestration kit's (the folder itself is the plugin). */
+export function isKitManifest(pluginJson: string | null): boolean {
+  try {
+    return (JSON.parse(pluginJson ?? '') as { name?: unknown }).name === 'orchestration-kit'
+  } catch {
+    return false
   }
 }
 
