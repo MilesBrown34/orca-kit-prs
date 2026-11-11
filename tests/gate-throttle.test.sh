@@ -160,14 +160,22 @@ has "no flock: still runs the command" "ran" "$out"; has "no flock: says it is u
 reset; export GATE_SLOTS=1
 L="$TMP/repo-log"; git init -q -b main "$L"
 git -C "$L" -c user.name=t -c user.email=t@example.com commit -q --allow-empty -m one
-: > "$L/untracked"
 err="$(cd "$L" && timeout 20 bash "$GT" --log "$TMP/gate.log" bash -c 'echo to-out; echo to-err >&2; exit 7' 2>&1 >/dev/null)"; rc=$?
 [ "$rc" -eq 7 ] && ok || bad "--log: exit code not passed through (got $rc)"
 [ "$(sed -n 1p "$TMP/gate.log")" = "SHA $(git -C "$L" rev-parse HEAD)" ] && ok || bad "--log: line 1 is not the commit: $(sed -n 1p "$TMP/gate.log")"
-sed -n 2p "$TMP/gate.log" | grep -Eq '^started [0-9]{2}:[0-9]{2}:[0-9]{2} dirty=1$' && ok || bad "--log: line 2 is not 'started HH:MM:SS dirty=1': $(sed -n 2p "$TMP/gate.log")"
+sed -n 2p "$TMP/gate.log" | grep -Eq '^started [0-9]{2}:[0-9]{2}:[0-9]{2} dirty=0$' && ok || bad "--log: line 2 is not 'started HH:MM:SS dirty=0': $(sed -n 2p "$TMP/gate.log")"
 has "--log: stdout in the log" "to-out" "$(cat "$TMP/gate.log")"; has "--log: stderr in the log" "to-err" "$(cat "$TMP/gate.log")"
 [ "$(tail -n 1 "$TMP/gate.log")" = "exit 7" ] && ok || bad "--log: last line is not 'exit 7': $(tail -n 1 "$TMP/gate.log")"
 has "--log: the slot line stays on stderr" "slot 1 acquired" "$err"; hasnt "--log: the slot line is not in the log" "acquired" "$(cat "$TMP/gate.log")"
+
+# 11a. --log on a tree with uncommitted or untracked paths is refused: gate evidence must name a committed tree
+: > "$L/untracked"
+err="$(cd "$L" && timeout 20 bash "$GT" --log "$TMP/dirty.log" bash -c 'echo dirty-ran' 2>&1 >/dev/null)"; rc=$?
+[ "$rc" -eq 65 ] && ok || bad "--log dirty: want exit 65, got $rc"
+hasnt "--log dirty: the command did not run" "dirty-ran" "$(cat "$TMP/dirty.log")"
+has "--log dirty: the log says why" "REFUSED dirty=1" "$(cat "$TMP/dirty.log")"; has "--log dirty: stderr says why" "REFUSED" "$err"
+(cd "$L" && timeout 20 bash "$GT" bash -c 'echo plain-ran' 2>/dev/null) | grep -q plain-ran && ok || bad "a plain run (no --log) on a dirty tree still runs"
+rm -f "$L/untracked"
 
 # 11b. --log reads the commit when the slot is taken, not while waiting: a commit made in the queue is the one logged
 reset; export GATE_SLOTS=1

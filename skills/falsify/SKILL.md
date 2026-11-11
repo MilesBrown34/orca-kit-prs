@@ -20,6 +20,7 @@ git diff HEAD --quiet || { echo 'UNCOMMITTED — commit GREEN first'; exit 1; }
 
 # 2. PREDICT — write it down BEFORE running (in the row, a file in the evidence dir, or your reply):
 #    tests that must go RED (names + count) AND tests that must stay GREEN (incl. a positive control).
+#    First list every check and fixture that reads the state the mutant changes (plants included); each is in it.
 
 # 3. APPLY — anchored, with a match-count assert. Never a bare sed you hope matched.
 python3 - <<'EOF'   # or any tool that can assert the count
@@ -65,7 +66,7 @@ A falsify that skips one of these has proved nothing, in either direction:
 - [ ] **Two fixes that cover for each other are stacked.** Switch them off in steps from one saved state (A off; A and B off), and predict which step reds which check.
 - [ ] **A green mutant sends you to the second path.** Find the other code that reaches the same result, mutate both, and state what the check proves: at least one path works.
 - [ ] **Stderr stays visible and one target tree is named.** No `2>/dev/null` on anything that edits files; after restore, diff-verify every tree the command could have reached.
-- [ ] **The check was calibrated before it judged anything.** It passed a null edit (no change) and the output already accepted, and failed a known-bad change; a fail without that may be the check's own floor.
+- [ ] **The check was calibrated before it judged anything.** It passed a null edit (no change) and the output already accepted, failed a known-bad change, and ran over the whole real corpus with its refusals counted; a fail without that may be the check's own floor.
 - [ ] **A ranking or similarity metric ordered known pairs.** Every right pair beat every wrong pair (a shifted frame, the other view), with the margin reported, before it ranked candidates.
 - [ ] **A check built for a complaint is red on the rejected output itself,** not only on an invented broken case, and is labelled against the pre-fix code: red there reproduces the complaint; green there makes it a regression guard only.
 
@@ -81,7 +82,7 @@ A falsify that skips one of these has proved nothing, in either direction:
 | **Decompose, don't replay** — channel × population × layer × site | Replaying the spec's named mutants passes by construction |
 | **Discriminating mutant** — kills the new test, old one stays green | Proves the new test earns its place, not just that it can fail |
 | **Old-guard survival** — run the PRE-fix test against the same mutant | The only proof of a claim that "the old guard was blind" |
-| **One mutant per side and per path** — break the lower and the upper limit separately; one mutant per trigger path (tick, load, equip …) | An inert side or path hides behind the one you broke |
+| **One mutant per side and per path** — break the lower and the upper limit separately; one mutant per trigger path (tick, load, equip …), per list entry, per "only when" clause and per fallback (a plant the primary path cannot handle) | An inert side or path hides behind the one you broke |
 | **Flip the policy constant once** — change the tuned value and see which pins go red | Finds pins bound to today's scenario instead of the rule |
 | **Paste the guard onto the other kind** — copy it to a different kind of object, nest it away from the use, make it a no-op (`if G: pass`), join it with `and not G` | A guard counts only where it controls the use; each of these must go red |
 
@@ -91,6 +92,8 @@ A falsify that skips one of these has proved nothing, in either direction:
 - **Anchor by line or a unique block, never first grep match.** A wrong anchor gives a false survivor; an escaped char gives an unapplied mutant. Print the resolved line.
 - **Probe the fixtures before predicting.** On the unmutated tree, count how many runs reach the mutated line with a non-trivial input; zero reach ⇒ predict SURVIVOR. Keep probes out of the tree (the evidence dir from ORCHESTRATION.md, never `/tmp`) so they can't inflate counts and survive a reboot.
 - **Re-run the battery after adding any default/fallback.** A fixture whose value equals the fallback makes forwarding and defaulting indistinguishable.
+- **Measure the noise before setting a tolerance.** Run the unchanged tree several times first; a gap under twice the run-to-run noise cannot be enforced.
+- **A timing test controls time at its own action and repeats 20+ times under load.** One green run of a race is luck.
 - **A scan for undefined VALUES can't see ABSENT keys.** State the guard as an obligation: what each variant owes, asserted present, tied to the live registry.
 
 ## Batteries (3+ mutants)
@@ -99,4 +102,5 @@ A falsify that skips one of these has proved nothing, in either direction:
 - After ANY killed or timed-out battery, before trusting the tree: `git diff HEAD --stat`.
 - Per mutant: print `git diff --numstat` BEFORE its run, write its result to disk as it completes, restore + assert clean before the next. A driver that writes results only at the end loses everything on a kill.
 - Use a machine-readable reporter (JSON / verbose per-test) per mutant so both halves of the prediction are checkable by test id; first assert on the unmutated tree that every id resolves to exactly one test.
+- Copy a tree with `git archive <sha>`, never `cp` of a working tree: a copy taken mid-mutation carries the mutant.
 - Parameterize the driver's worktree path and echo it per mutant — a reused driver pointing at the old tree scores everything as a miss.

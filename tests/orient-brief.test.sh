@@ -7,6 +7,7 @@
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; BS="$ROOT/skills/orient-brief/brief.sh"; SK="$ROOT/skills/orient-brief/SKILL.md"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+export BRIEF_SCRATCH="$TMP/scratch"   # never the real evidence folders
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.com GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.com
 pass=0; fail=0
 ok()  { pass=$((pass+1)); }
@@ -124,6 +125,11 @@ has "the skill has one injected command" "brief.sh" "$inj"
 OUT="$(cd "$BUILDER" && bash -c "$inj" 2>&1)"
 has "rendered skill: injects the brief" "acceptance: the brief text" "$OUT"
 has "rendered skill: injects the live banner" "era-3 · Seat" "$OUT"
+# 3. a recycled builder resumes: the row's STATUS.md from its evidence dir comes with the brief; none, no section
+run "$BUILDER" S3-1; hasnt "no STATUS.md: no status section" "=== STATUS" "$OUT"
+mkdir -p "$TMP/scratch/2026/November/S3-1"; printf 'step 4 of 6 reached; open question: X\n' > "$TMP/scratch/2026/November/S3-1/STATUS.md"
+run "$BUILDER" S3-1; [ "$RC" = 0 ] && ok || bad "exit $RC with a STATUS.md"
+has "STATUS.md is injected" "step 4 of 6 reached" "$OUT"; has "and the brief still comes first" "acceptance: the brief text" "$OUT"
 # allowed-tools must cover the injected command, or the loader's permission check blocks it
 grep -q '^allowed-tools: Bash(bash \*orient-brief/brief.sh\*)' "$SK" && ok || bad "allowed-tools does not cover the injected brief.sh call"
 
