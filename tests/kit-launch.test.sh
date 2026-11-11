@@ -53,6 +53,20 @@ has "update: nothing-to-do message" "You are on the latest." "$out"; rc_is "upda
 printf '#!/bin/sh\nexit 5\n' > "$H/bin/kit-up.sh"
 printf 'u\n' | env HOME="$H" KIT_LAUNCH_DRY=1 KIT_LAUNCH_RUN_UPDATE=1 bash "$L" >/dev/null 2>&1; rc_is "update: other exits pass through" 5 $?
 sed -i '/^update_cmd=/d' "$S/launcher.conf"
+# chores_cmd: [w] shows only when the command prints a line; [w] runs it with --run; exit 2 keeps the menu
+mkdir -p "$H/bin"; printf '#!/bin/sh\n[ "$1" = --short ] && exit 0\necho ran\n' > "$H/bin/chores.sh"; chmod +x "$H/bin/chores.sh"
+printf 'chores_cmd=~/bin/chores.sh\n' >> "$S/launcher.conf"
+out="$(pick 'q\n')"; hasnt "chores: no [w] when nothing is due" "[w]" "$out"
+out="$(pick 'w\nq\n')"; has "chores: w is not a choice when nothing is due" "Pick a number, n, or q." "$out"
+printf '#!/bin/sh\nif [ "$1" = --short ]; then echo "clean up: 3 items"; exit 0; fi\necho "Nothing left."; exit 2\n' > "$H/bin/chores.sh"
+out="$(pick 'q\n')"; has "chores: [w] with its line" "[w] clean up: 3 items" "$out"
+out="$(pick 'w\n')"; has "chores: w runs chores_cmd --run, ~ expanded" "CHORES $H/bin/chores.sh --run" "$out"
+out="$(printf 'w\nq\n' | env HOME="$H" KIT_LAUNCH_DRY=1 KIT_LAUNCH_RUN_CHORES=1 bash "$L" 2>&1)"; rc=$?
+has "chores: its message shows" "Nothing left." "$out"; rc_is "chores: exit 2 keeps the menu, then quit" 0 $rc
+[ "$(printf '%s' "$out" | grep -c 'pick a project')" -ge 2 ]; rc_is "chores: the menu shows again" 0 $?
+printf '#!/bin/sh\nsleep 5; echo late\n' > "$H/bin/chores.sh"
+out="$(pick 'q\n')"; hasnt "chores: a slow command adds no [w]" "[w]" "$out"
+sed -i '/^chores_cmd=/d' "$S/launcher.conf"
 # header_cmd replaces the kit line; a silent or failing one falls back to the version.
 mkdir -p "$H/bin"; printf '#!/bin/sh\necho "My kit 1.0 + 2 notes"\necho second line\n' > "$H/bin/head.sh"; chmod +x "$H/bin/head.sh"
 printf 'header_cmd=~/bin/head.sh\n' >> "$S/launcher.conf"
