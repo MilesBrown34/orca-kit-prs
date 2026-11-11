@@ -1,5 +1,5 @@
 <!-- own-fork:top -->
-**This is PRS's fork of Artekka's orchestration kit.** It is his kit, kept current with his releases, plus 27
+**This is PRS's fork of [Artekka's original orchestration kit](https://github.com/Artekka/orcastration-kit).** It is his kit, kept current with his releases, plus 27
 extras: things built while running it on real projects, kept as separate branches and offered to him one at a time.
 Install this fork to get all of them; **[the full list of extras](EXTRAS.md)** says what each one does.
 The official release is **v1.0.2**, on Artekka's 0.9.0; releases are on the Releases page, and this fork's changelog is at
@@ -49,7 +49,7 @@ project: three concurrent sessions, ~15 workstreams, one evening, zero collision
 ```bash
 # 1. Install into your repo (normal shell, not inside Claude; on Windows run `wsl` first)
 cd ~/projects/myapp
-claude plugin marketplace add Artekka/orcastration-kit
+claude plugin marketplace add <this-repo>   # <this-repo> = this GitHub page's owner/name, from its address
 claude plugin install orchestration-kit@artekka-kits --scope project
 
 # 2. Set up the repo and start the team — inside Claude; tell it your test command,
@@ -162,7 +162,7 @@ Per repo (recommended — the kit is active only in the repos you install it int
 Run from inside the repo:
 
 ```bash
-claude plugin marketplace add Artekka/orcastration-kit   # or a local path
+claude plugin marketplace add <this-repo>   # this GitHub page's owner/name, or a local path
 claude plugin install orchestration-kit@artekka-kits --scope project   # or --scope local
 ```
 
@@ -174,13 +174,13 @@ Then, in each project: run `/orchestration-kit:kit-init` once (it copies the scr
 `scripts/`), then `bash scripts/start-team.sh`. Step by step: [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md).
 
 Per-project (self-describing repo — teammates/machines get the plugin offered
-automatically) — add to the project's `.claude/settings.json`:
+automatically) — add to the project's `.claude/settings.json` (`<this-repo>` as above):
 
 ```json
 {
   "extraKnownMarketplaces": {
     "artekka-kits": {
-      "source": { "source": "github", "repo": "Artekka/orcastration-kit" }
+      "source": { "source": "github", "repo": "<this-repo>" }
     }
   },
   "enabledPlugins": { "orchestration-kit@artekka-kits": true }
